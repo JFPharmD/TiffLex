@@ -1,16 +1,18 @@
 // UMPJE Cram Prep — offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE_NAME = 'umpje-cram-prep-' + VERSION;
 
 const PRECACHE_URLS = [
   './',
   './index.html',
+  './welcome.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './icon-512-maskable.png'
+  './icon-512-maskable.png',
+  './og-image.png'
 ];
 
 self.addEventListener('install', (event) => {
