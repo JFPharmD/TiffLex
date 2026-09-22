@@ -205,7 +205,7 @@ const WEIGHT = {1:30,2:30,3:20,4:20};
 const SRC = {PPP:"PharmPrepPro",PE:"PharmacyExam federal",PECOMP:"PharmacyExam compounding"};
 const KEY = "umpje.v2";
 
-let S = {h:{}, dom:[1,2,3,4], src:["PPP","PE","PECOMP"], qual:1, focus:"all"};
+let S = {h:{}, dom:[1,2,3,4], src:["PPP","PE","PECOMP"], qual:1, focus:"all", gen:1};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const hist=id=>S.h[id]||(S.h[id]={r:0,w:0,g:0});
@@ -223,6 +223,7 @@ $("#days").innerHTML = "<b>"+days()+"</b>";
 function pool(needOpts){
   return BANK.filter(q=>{
     if(needOpts && !q.o) return false;
+    if(needOpts && !S.gen && q.g) return false;
     if(!S.dom.includes(q.d)) return false;
     if(!S.src.includes(q.s)) return false;
     if(q.v > S.qual) return false;
@@ -246,6 +247,8 @@ function filters(){
     chipRow("Question source", Object.entries(SRC).map(([k,v])=>[k,v]), v=>S.src.includes(v)) +
     chipRow("Text quality — screenshot questions were recovered by OCR and some are rough",
       [[0,"Clean only"],[1,"Clean + light noise"],[2,"Everything"]], v=>S.qual==+v) +
+    chipRow("Answer choices — 533 questions had no options in the source, so plausible distractors were generated for them",
+      [[1,"Include generated"],[0,"Original options only"]], v=>S.gen==+v) +
     chipRow("Focus", [["all","All questions"],["unseen","Not yet seen"],["missed","Previously missed"]], v=>S.focus===v);
 }
 function wireFilters(root){
@@ -255,6 +258,7 @@ function wireFilters(root){
       if(idx===0){const n=+v; S.dom=S.dom.includes(n)?S.dom.filter(x=>x!==n):S.dom.concat(n); if(!S.dom.length)S.dom=[n];}
       else if(idx===1){S.src=S.src.includes(v)?S.src.filter(x=>x!==v):S.src.concat(v); if(!S.src.length)S.src=[v];}
       else if(idx===2){S.qual=+v}
+      else if(idx===3){S.gen=+v}
       else {S.focus=v}
       save(); render();
     });
