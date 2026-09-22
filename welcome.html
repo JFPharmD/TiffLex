@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>UMPJE Cram Prep</title>
-<meta name="description" content="Free offline study tool for the Uniform MPJE: a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet. Works with zero internet connection.">
-<link rel="canonical" href="https://jfpharmd.github.io/UMPJE-Cram-Prep/welcome.html">
+<title>TiffLex — UMPJE Review</title>
+<meta name="description" content="TiffLex — a free offline UMPJE review tool: 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet. Works with zero internet connection.">
+<link rel="canonical" href="https://jfpharmd.github.io/TiffLex/welcome.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="UMPJE Cram Prep">
-<meta property="og:description" content="Free offline study tool for the Uniform MPJE: a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet.">
-<meta property="og:url" content="https://jfpharmd.github.io/UMPJE-Cram-Prep/welcome.html">
-<meta property="og:image" content="https://jfpharmd.github.io/UMPJE-Cram-Prep/og-image.png">
+<meta property="og:title" content="TiffLex — UMPJE Review">
+<meta property="og:description" content="A free offline UMPJE review tool: 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet.">
+<meta property="og:url" content="https://jfpharmd.github.io/TiffLex/welcome.html">
+<meta property="og:image" content="https://jfpharmd.github.io/TiffLex/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="UMPJE Cram Prep">
-<meta name="twitter:description" content="Free offline study tool for the Uniform MPJE: drill bank, flashcards, mock exam, and cram sheet.">
-<meta name="twitter:image" content="https://jfpharmd.github.io/UMPJE-Cram-Prep/og-image.png">
-<meta name="theme-color" content="#0b6e4f">
+<meta name="twitter:title" content="TiffLex — UMPJE Review">
+<meta name="twitter:description" content="A free offline UMPJE review tool: drill bank, flashcards, mock exam, and cram sheet.">
+<meta name="twitter:image" content="https://jfpharmd.github.io/TiffLex/og-image.png">
+<meta name="theme-color" content="#173F35">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -26,14 +26,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#e9eef1; --surf:#fff; --surf2:#f3f6f8; --ink:#13202a; --mut:#5c6f7c;
-  --rule:#cfd9e0; --acc:#0b6e4f; --acc-s:#e2f0ea; --acc-dark:#08543c;
-  --warn:#8a6100; --warn-s:#fbf0da; --shadow:0 1px 0 rgba(19,32,42,.06);
+  --bg:#FAFAF7; --surf:#fff; --surf2:#F2F6F4; --ink:#14312A; --mut:#5E7A70;
+  --rule:#D9E4DF; --acc:#173F35; --acc-s:#DFF2EB; --mint:#8ED6C1;
+  --warn:#8a6100; --warn-s:#fbf0da; --shadow:0 1px 0 rgba(23,63,53,.06);
   box-sizing:border-box;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0e161c; --surf:#16212a; --surf2:#1c2a34; --ink:#e4ecf1; --mut:#93a6b2;
-  --rule:#2b3b47; --acc:#3fb489; --acc-s:#12302a; --acc-dark:#0a2c22;
+  --bg:#0D1F1A; --surf:#14312A; --surf2:#1B3E35; --ink:#E8F2EE; --mut:#95B5AA;
+  --rule:#27493F; --acc:#8ED6C1; --acc-s:#173F35; --mint:#8ED6C1;
   --warn:#e3b567; --warn-s:#312611; --shadow:none;
 }}
 *,*::before,*::after{box-sizing:inherit}
@@ -43,55 +43,50 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .wrap{max-width:760px;margin:0 auto;padding:0 20px}
 a{color:var(--acc)}
 
-/* hero */
 .hero{padding:56px 0 40px;text-align:center}
-.icon{width:84px;height:84px;border-radius:19px;margin:0 auto 22px;display:block;box-shadow:0 6px 20px rgba(11,110,79,.28)}
-h1{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:40px;line-height:1.15;margin:0 0 14px;letter-spacing:-.01em}
-.tagline{color:var(--mut);font-size:18px;max-width:520px;margin:0 auto 30px}
-.cta{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#fff;text-decoration:none;
-  font-weight:600;font-size:16px;padding:14px 28px;border-radius:12px;box-shadow:0 4px 14px rgba(11,110,79,.3)}
+.icon{width:88px;height:88px;margin:0 auto 22px;display:block;border-radius:20px;
+  box-shadow:0 8px 24px rgba(23,63,53,.22)}
+h1{font-weight:800;font-size:44px;line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+h1 .lex{color:var(--mint)}
+@media (prefers-color-scheme:light){h1 .tiff{color:var(--acc)}}
+.kicker{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);margin:0 0 20px;font-weight:600}
+.tagline{color:var(--mut);font-size:18px;max-width:540px;margin:0 auto 30px}
+.cta{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:var(--surf);text-decoration:none;
+  font-weight:600;font-size:16px;padding:14px 30px;border-radius:12px;box-shadow:0 4px 14px rgba(23,63,53,.28)}
 .cta:hover{opacity:.92}
 .sub-cta{margin-top:12px;font-size:13.5px;color:var(--mut)}
 
-/* feature grid */
+.stats{display:flex;justify-content:center;gap:30px;flex-wrap:wrap;margin:8px 0 44px;text-align:center}
+.stat b{display:block;font-family:Newsreader,Georgia,serif;font-size:28px;color:var(--acc)}
+.stat span{color:var(--mut);font-size:13px}
+
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:36px 0}
 @media (max-width:520px){.grid{grid-template-columns:1fr}}
 .card{background:var(--surf);border:1px solid var(--rule);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
 .card b{display:block;font-size:15.5px;margin-bottom:4px}
 .card span{color:var(--mut);font-size:14px}
 
-/* stats row */
-.stats{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin:8px 0 44px;text-align:center}
-.stat b{display:block;font-family:Newsreader,Georgia,serif;font-size:26px;color:var(--acc)}
-.stat span{color:var(--mut);font-size:13px}
-
-/* section */
 h2{font-size:20px;margin:44px 0 12px;letter-spacing:-.01em}
-p{color:var(--ink)}
 .mut{color:var(--mut)}
 
-/* disclaimer */
 .notice{background:var(--warn-s);border:1px solid color-mix(in srgb, var(--warn) 40%, transparent);
-  border-radius:12px;padding:16px 18px;font-size:14.5px;color:var(--ink);margin:16px 0}
+  border-radius:12px;padding:16px 18px;font-size:14.5px;margin:16px 0}
 .notice b{color:var(--warn)}
 
 footer{margin:56px 0 40px;padding-top:20px;border-top:1px solid var(--rule);color:var(--mut);font-size:13px;text-align:center}
 footer a{color:var(--mut);text-decoration:underline}
+.pillars{letter-spacing:.18em;text-transform:uppercase;font-size:11.5px;color:var(--mut);margin-bottom:14px;font-weight:600}
+.pillars i{color:var(--mint);font-style:normal}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="hero">
-    <svg class="icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="UMPJE Cram Prep icon">
-      <rect width="100" height="100" rx="22" fill="#0b6e4f"/>
-      <g transform="rotate(-40 50 50)">
-        <rect x="26" y="38" width="48" height="24" rx="12" fill="#fff"/>
-        <path d="M26 50a12 12 0 0 1 12-12h12v24H38A12 12 0 0 1 26 50Z" fill="#08543c"/>
-      </g>
-    </svg>
-    <h1>UMPJE Cram Prep</h1>
-    <p class="tagline">A free, offline study tool for the Uniform MPJE — a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet, all in one page that keeps working with zero signal.</p>
+    <img class="icon" src="icon-192.png" alt="TiffLex icon — a mortar and pestle with leaves">
+    <h1><span class="tiff">Tiff</span><span class="lex">Lex</span></h1>
+    <p class="kicker">UMPJE Review</p>
+    <p class="tagline">A free, offline review tool for the Uniform MPJE — a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet, all in one page that keeps working with zero signal.</p>
     <a class="cta" href="index.html">Launch the app →</a>
     <div class="sub-cta">Opens instantly · installs to your home screen · no account, no sign-up</div>
   </div>
@@ -110,18 +105,19 @@ footer a{color:var(--mut);text-decoration:underline}
   </div>
 
   <h2>Why this exists</h2>
-  <p class="mut">Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. This tool's content was checked line-by-line against DEA and FDA primary sources (21 CFR, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules flagged explicitly rather than silently corrected.</p>
+  <p class="mut">Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. TiffLex's content was checked line-by-line against DEA and FDA primary sources (21 CFR, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules flagged explicitly rather than silently corrected.</p>
 
   <div class="notice">
-    <b>Before you rely on this:</b> this is an independent, personal study project — it is not produced, reviewed, or endorsed by NABP, and it is not a substitute for NABP's own official UMPJE materials or your state board of pharmacy's requirements. Federal pharmacy law also changes over time; treat anything here as a study aid, not a legal reference, and verify anything exam-critical against current primary sources.
+    <b>Before you rely on this:</b> TiffLex is an independent, personal study project — it is not produced, reviewed, or endorsed by NABP, and it is not a substitute for NABP's own official UMPJE materials or your state board of pharmacy's requirements. Federal pharmacy law also changes over time; treat anything here as a study aid, not a legal reference, and verify anything exam-critical against current primary sources.
   </div>
 
   <h2>How it works</h2>
   <p class="mut">Everything — the question bank, the cram sheet, your progress — lives in your browser. Nothing is sent to a server, there's no login, and once you've opened it once, it keeps working with the internet off. Add it to your phone's home screen for a full-screen, app-like experience.</p>
 
   <footer>
-    Built by a fellow pharmacist studying for the same exam.<br>
-    <a href="index.html">Launch the app</a> · <a href="https://github.com/JFPharmD/UMPJE-Cram-Prep">View source on GitHub</a>
+    <div class="pillars">Prepare <i>•</i> Practice <i>•</i> Progress</div>
+    Built by a pharmacist studying for the same exam.<br>
+    <a href="index.html">Launch the app</a> · <a href="https://github.com/JFPharmD/TiffLex">View source on GitHub</a>
   </footer>
 
 </div>

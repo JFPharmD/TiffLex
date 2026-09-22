@@ -1,11 +1,11 @@
-# UMPJE Cram Prep
+# TiffLex — UMPJE Review
 
-A free, offline study tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
+A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 1,276-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
 
-**Live app:** https://jfpharmd.github.io/UMPJE-Cram-Prep/
-**About / landing page:** https://jfpharmd.github.io/UMPJE-Cram-Prep/welcome.html
+**Live app:** https://jfpharmd.github.io/TiffLex/
+**About page:** https://jfpharmd.github.io/TiffLex/welcome.html
 
-![Screenshot of the drill setup screen](screenshot-app.png)
+![TiffLex](og-image.png)
 
 ## Features
 
@@ -18,15 +18,17 @@ A free, offline study tool for the **Uniform MPJE** (Multistate Pharmacy Jurispr
 
 ## Why this exists
 
-Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. This tool's reference content was checked against DEA and FDA primary sources (21 CFR, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules called out directly rather than silently corrected.
+Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. TiffLex's reference content was checked against DEA and FDA primary sources (21 CFR, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules called out directly rather than silently corrected.
 
 ## Disclaimer
 
-This is an independent, personal study project. It is **not** produced, reviewed, or endorsed by NABP, and it is not a substitute for NABP's own official UMPJE materials or a state board of pharmacy's requirements. Federal pharmacy law changes over time — treat this as a study aid, not a legal reference, and verify anything exam-critical against current primary sources.
+TiffLex is an independent, personal study project. It is **not** produced, reviewed, or endorsed by NABP, and it is not a substitute for NABP's own official UMPJE materials or a state board of pharmacy's requirements. Federal pharmacy law changes over time — treat this as a study aid, not a legal reference, and verify anything exam-critical against current primary sources.
 
 ## How it's built
 
 A single self-contained `index.html` (HTML/CSS/vanilla JS, no build step, no framework) with the question bank and reference content embedded directly in the page. State is kept in the browser's `localStorage`; a small custom sync code lets progress be carried between devices without a backend. A `service-worker.js` caches the app shell on first load so it works completely offline afterward. Hosted for free on GitHub Pages.
+
+Brand colors: pine `#173F35`, mint `#8ED6C1`, ivory `#FAFAF7`. The icon is vector (`mark.svg`); all raster sizes are generated from it.
 
 ## Running it locally
 

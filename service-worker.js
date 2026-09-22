@@ -1,8 +1,8 @@
-// UMPJE Cram Prep — offline service worker
+// TiffLex — offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v2';
-const CACHE_NAME = 'umpje-cram-prep-' + VERSION;
+const VERSION = 'v3';
+const CACHE_NAME = 'tifflex-' + VERSION;
 
 const PRECACHE_URLS = [
   './',
@@ -28,7 +28,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((names) =>
       Promise.all(
         names
-          .filter((name) => name.startsWith('umpje-cram-prep-') && name !== CACHE_NAME)
+          .filter((name) => (name.startsWith('tifflex-') || name.startsWith('umpje-cram-prep-')) && name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       )
     ).then(() => self.clients.claim())
