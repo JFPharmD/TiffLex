@@ -1,7 +1,7 @@
 // TiffLex — offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE_NAME = 'tifflex-' + VERSION;
 
 const PRECACHE_URLS = [
