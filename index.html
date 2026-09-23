@@ -158,6 +158,13 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .confidence button{flex:1;border:1px solid var(--rule);background:var(--surf2);border-radius:8px;padding:9px 6px;font-size:13px;color:var(--mut)}
 .confidence button.sel{background:var(--acc-s);color:var(--acc);border-color:var(--acc);font-weight:600}
 .swipehint{text-align:center;font-size:12px;color:var(--mut);margin:10px 0 0}
+.citerow{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.citechip{font-size:12.5px;color:var(--acc);text-decoration:none;border:1px solid var(--rule);border-radius:999px;padding:5px 11px;background:var(--surf2);display:inline-flex;align-items:center;gap:4px}
+.citechip.plain{color:var(--mut)}
+.citemore{font-size:12.5px;color:var(--mut);background:none;border:1px solid var(--rule);border-radius:999px;padding:5px 11px}
+.topicbanner{background:var(--acc-s);color:var(--acc);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.topicbanner button{background:none;border:1px solid currentColor;border-radius:999px;padding:4px 11px;font-size:12px;color:inherit;flex-shrink:0}
+.streak{color:var(--mid);margin-left:6px}
 
 /* ---------- bottom bar ---------- */
 .bottom{position:fixed;left:0;right:0;bottom:0;background:var(--surf);border-top:1px solid var(--rule);
@@ -251,22 +258,73 @@ const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"R
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
 
-let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:"2026-09-26", theme:"auto", textSize:"md", flags:{}, mockLen:120};
+let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:"2026-09-26", theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const hist=id=>S.h[id]||(S.h[id]={r:0,w:0,g:0});
 
-let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null;
+let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null;
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
 const esc=t=>String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+/* ---------- citations: link out to eCFR / Cornell LII, and cluster by topic ---------- */
+function citeLink(cite){
+  if(!cite) return null;
+  let m = cite.match(/(\d{1,3})\s*C\.?\s*F\.?\s*R\.?\s*(?:§+\s*|Section\s+)?(\d+(?:\.\d+)?[a-z]?)/i);
+  if(m){
+    const isPart = !m[2].includes(".");
+    return isPart ? `https://www.ecfr.gov/current/title-${m[1]}/part-${m[2]}`
+                  : `https://www.ecfr.gov/current/title-${m[1]}/section-${m[2]}`;
+  }
+  m = cite.match(/(\d{1,3})\s*U\.?\s*S\.?\s*C\.?\s*(?:§+\s*|Section\s+)?([0-9]+[a-z]*(?:-[0-9]+[a-z]*)?)/i);
+  if(m) return `https://www.law.cornell.edu/uscode/text/${m[1]}/${m[2]}`;
+  return null;
+}
+function topicKey(cite){
+  if(!cite) return "Uncited";
+  let m = cite.match(/(\d{1,3})\s*C\.?\s*F\.?\s*R\.?\s*(?:§+\s*|Section\s+)?(\d+)/i);
+  if(m) return `${m[1]} CFR ${m[2]}`;
+  m = cite.match(/(\d{1,3})\s*U\.?\s*S\.?\s*C\.?\s*(?:§+\s*|Section\s+)?([0-9]+[a-z]*(?:-[0-9]+[a-z]*)?)/i);
+  if(m) return `${m[1]} U.S.C. § ${m[2]}`;
+  m = cite.match(/^(USP\s*<\d+>|NIOSH[^(]+)/i);
+  if(m) return m[1].trim();
+  return cite.split(" (")[0].trim();
+}
+const TOPIC_COUNTS = {};
+BANK.forEach(q=>{ const k=topicKey(q.cite); TOPIC_COUNTS[k]=(TOPIC_COUNTS[k]||0)+1; });
+function citeBlock(cite, withMore){
+  if(!cite) return "";
+  const link = citeLink(cite);
+  const key = topicKey(cite);
+  const chip = link
+    ? `<a class="citechip" href="${link}" target="_blank" rel="noopener">${esc(cite)} ↗</a>`
+    : `<span class="citechip plain">${esc(cite)}</span>`;
+  const n = TOPIC_COUNTS[key]||0;
+  const more = (withMore && n>1) ? `<button class="citemore" data-topic="${esc(key)}">More like this (${n})</button>` : "";
+  return `<div class="citerow">${chip}${more}</div>`;
+}
+
+/* ---------- study streak ---------- */
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/864e5); }
+function updateStreak(){
+  if(!S.streak) S.streak={count:0,last:null};
+  const today=todayStr();
+  if(S.streak.last===today) return;
+  const diff = S.streak.last ? daysBetween(S.streak.last, today) : null;
+  S.streak.count = diff===1 ? (S.streak.count||0)+1 : 1;
+  S.streak.last = today;
+  save();
+}
 function daysLabel(){
-  if(!S.examDate) return `<button class="ghost" id="setExam" style="padding:3px 10px;font-size:12.5px">Set exam date</button>`;
+  const streak = (S.streak && S.streak.count>1) ? ` <span class="streak">🔥 ${S.streak.count}-day streak</span>` : "";
+  if(!S.examDate) return `<button class="ghost" id="setExam" style="padding:3px 10px;font-size:12.5px">Set exam date</button>${streak}`;
   const target=new Date(S.examDate+"T08:00:00"), d=Math.ceil((target-new Date())/864e5);
   const label=d>1?`${d} days to your exam`:d===1?"Tomorrow":d===0?"Exam day":"Good luck";
-  return `<b>${label}</b> <button class="ghost" id="setExam" style="padding:2px 8px;font-size:11.5px;margin-left:6px">Edit</button>`;
+  return `<b>${label}</b> <button class="ghost" id="setExam" style="padding:2px 8px;font-size:11.5px;margin-left:6px">Edit</button>${streak}`;
 }
 function renderDays(){
   $("#days").innerHTML = daysLabel();
@@ -282,6 +340,7 @@ function renderDays(){
     S.examDate=t; save(); renderDays();
   };
 }
+updateStreak();
 renderDays();
 
 function pool(needOpts){
@@ -293,6 +352,7 @@ function pool(needOpts){
     if(S.focus==="unseen" && h) return false;
     if(S.focus==="missed" && !(h && (h.w>0||h.g===2||h.g===3))) return false;
     if(S.focus==="flagged" && !S.flags[q.i]) return false;
+    if(topicFilter && topicKey(q.cite)!==topicFilter) return false;
     return true;
   });
 }
@@ -329,9 +389,11 @@ function render(){
   if(queue.length) return card();
 
   const need = mode!=="cards";
+  const showTopicBanner = topicFilter && mode!=="mock";
   const n = pool(need).length;
   const mockLen = S.mockLen||120, mockMin = Math.round(mockLen/120*180);
   su.innerHTML = `<div class="panel">
+    ${showTopicBanner?`<div class="topicbanner"><span>Filtered to <b>${esc(topicFilter)}</b> (${n} question${n===1?"":"s"})</span><button id="clearTopic">Clear</button></div>`:""}
     <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:12px">${
       mode==="drill" ? "Multiple choice with the answer and explanation after each question."
       : mode==="cards" ? "Read the question, answer it out loud, then check yourself. Missed cards come back."
@@ -349,6 +411,7 @@ function render(){
   }
   $("#go").onclick=start;
   if(!n && mode!=="mock") $("#go").disabled=true;
+  const ct=$("#clearTopic"); if(ct) ct.onclick=()=>{ topicFilter=null; render(); };
 }
 
 function start(){
@@ -393,7 +456,8 @@ function card(){
       ? `<div class="verdict" style="border-top:0;padding-top:0">
            ${q.a?`<p class="ans">${esc(q.a)}</p>`:``}
            ${q.L&&!q.a?`<p class="ans">Correct option: ${q.L}</p>`:``}
-           ${q.e?`<p>${esc(q.e)}</p>`:``}</div>
+           ${q.e?`<p>${esc(q.e)}</p>`:``}
+           ${citeBlock(q.cite, true)}</div>
          <div class="grades"><button data-g="1">Knew it</button><button data-g="2">Shaky</button><button data-g="3">Missed it</button></div>
          <p class="swipehint">Swipe right = Knew it · Swipe left = Missed it</p>`
       : `<button class="reveal" id="rv">Show the answer</button>`;
@@ -409,7 +473,8 @@ function card(){
     if(answered!==null && mode!=="mock"){
       const ok=q.ord[answered]===q.c;
       inner += `<div class="verdict"><h4 class="${ok?"ok":"bad"}">${ok?"Correct":"Not this one"}</h4>
-        <p>${esc(q.e || q.a || "No explanation was included in the source material.")}</p></div>`;
+        <p>${esc(q.e || q.a || "No explanation was included in the source material.")}</p>
+        ${citeBlock(q.cite, true)}</div>`;
       if(ok) inner += `<div class="confidence"><p class="lab">How sure were you?</p>
         <button data-c="1" class="${confPick===1?"sel":""}">Knew it</button>
         <button data-c="2" class="${confPick===2?"sel":""}">Guessed</button></div>`;
@@ -456,6 +521,11 @@ function card(){
     confPick=+b.dataset.c;
     const hh=hist(q.i); hh.g=confPick;
     save(); card();
+  });
+  st.querySelectorAll(".citemore").forEach(b=>b.onclick=()=>{
+    topicFilter=b.dataset.topic; S.focus="all";
+    mode="drill"; queue=[]; pos=0; answered=null; revealed=false; confPick=null;
+    start();
   });
   wireSwipe(st);
 }
@@ -510,7 +580,8 @@ function finish(){
         <p class="ra">Correct: ${esc(q.o[q.c])}</p>
         ${pick!=null?`<p style="color:var(--mut);font-size:13.5px;margin-top:3px">You chose: ${esc(q.o[q.ord[pick]])}</p>`:
           `<p style="color:var(--mut);font-size:13.5px;margin-top:3px">Left blank</p>`}
-        ${q.e?`<p style="color:var(--mut);font-size:13.5px;margin-top:6px">${esc(q.e)}</p>`:``}</div>`).join("")+`</div>`:``}`;
+        ${q.e?`<p style="color:var(--mut);font-size:13.5px;margin-top:6px">${esc(q.e)}</p>`:``}
+        ${citeBlock(q.cite, false)}</div>`).join("")+`</div>`:``}`;
   queue=[]; pos=0; answered=null; revealed=false;
   $("#again").onclick=()=>{ if(mode==="mock") start(); else render(); };
 }
@@ -575,6 +646,32 @@ function sheet(){
   };
 }
 
+function exportList(kind){
+  const qs = kind==="flagged"
+    ? BANK.filter(q=>S.flags[q.i])
+    : BANK.filter(q=>S.h[q.i] && (S.h[q.i].w>0 || S.h[q.i].g===2 || S.h[q.i].g===3));
+  if(!qs.length){ alert("Nothing to export yet."); return; }
+  const title = kind==="flagged" ? "Flagged questions" : "Missed questions";
+  const rows = qs.map(q=>`
+    <div style="margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #ccc">
+      <p style="font-size:12px;color:#666;margin:0 0 4px">Domain ${q.d} · Q${q.n}${q.cite?` · ${esc(q.cite)}`:""}</p>
+      <p style="font-weight:600;margin:0 0 8px">${esc(q.q)}</p>
+      <p style="color:#1a6b4f;margin:0 0 6px"><b>Answer:</b> ${esc(q.a || (q.o&&q.o[q.c]) || "")}</p>
+      ${q.e?`<p style="margin:0;color:#333">${esc(q.e)}</p>`:``}
+    </div>`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>TiffLex — ${title}</title>
+    <style>body{font-family:Georgia,serif;max-width:700px;margin:32px auto;padding:0 20px;line-height:1.5;color:#111}
+    h1{font-family:Arial,sans-serif;font-size:20px}
+    @media print{body{margin:0;padding:12px}}</style></head>
+    <body><h1>TiffLex — ${title} (${qs.length})</h1>${rows}</body></html>`;
+  const blob = new Blob([html], {type:"text/html"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `tifflex-${kind}-questions.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
 function stats(){
   const ids=Object.keys(S.h);
   const seen=ids.length, r=ids.reduce((a,i)=>a+S.h[i].r,0), w=ids.reduce((a,i)=>a+S.h[i].w,0);
@@ -585,6 +682,20 @@ function stats(){
   });
   const missed=BANK.filter(q=>S.h[q.i]&&(S.h[q.i].w>0||S.h[q.i].g===2||S.h[q.i].g===3)).length;
   const flagged=Object.keys(S.flags||{}).length;
+
+  const topicAgg={};
+  BANK.forEach(q=>{
+    const hh=S.h[q.i]; if(!hh) return;
+    const k=topicKey(q.cite);
+    if(!topicAgg[k]) topicAgg[k]={r:0,t:0};
+    topicAgg[k].r+=hh.r; topicAgg[k].t+=hh.r+hh.w;
+  });
+  const weakTopics = Object.entries(topicAgg)
+    .filter(([k,v])=>v.t>=3)
+    .map(([k,v])=>[k, Math.round(v.r/v.t*100), v.t])
+    .sort((a,b)=>a[1]-b[1])
+    .slice(0,6);
+
   $("#stage").innerHTML=`<div class="panel">
     <p class="big">${seen}<span> of ${BANK.length} seen</span></p>
     <div class="meter"><div class="bar"><i style="width:${seen/BANK.length*100}%"></i></div></div>
@@ -593,9 +704,16 @@ function stats(){
     <p class="lab" style="margin-top:22px">Accuracy by domain</p>
     <div class="dom">${weak.map(([d,rr,tt])=>
       `<span>Domain ${d} · ${DOMS[d]}</span><b>${tt?Math.round(rr/tt*100)+"%":"—"}</b>`).join("")}</div>
+    ${weakTopics.length?`<p class="lab" style="margin-top:22px">Your weakest topics (3+ questions seen)</p>
+    <div class="dom">${weakTopics.map(([k,pct,tt])=>
+      `<span>${esc(k)}</span><b>${pct}% <span style="color:var(--mut);font-weight:400">(${tt})</span></b>`).join("")}</div>`:``}
     <div class="row" style="margin-top:20px;gap:8px">
       <button class="go" id="drillmiss" style="flex:1;margin-top:0">Drill only what I missed</button>
       <button class="go" id="drillflagged" style="flex:1;margin-top:0" ${flagged?"":"disabled"}>Drill flagged (${flagged})</button>
+    </div>
+    <div class="row" style="margin-top:8px;gap:8px">
+      <button id="expmissed" style="flex:1" ${missed?"":"disabled"}>Export missed (${missed})</button>
+      <button id="expflagged" style="flex:1" ${flagged?"":"disabled"}>Export flagged (${flagged})</button>
     </div></div>
 
   <div class="panel">
@@ -612,6 +730,8 @@ function stats(){
   </div>`;
   $("#drillmiss").onclick=()=>{ S.focus="missed"; save(); mode="drill"; queue=[]; render(); };
   const df=$("#drillflagged"); if(df) df.onclick=()=>{ S.focus="flagged"; save(); mode="drill"; queue=[]; render(); };
+  const em=$("#expmissed"); if(em) em.onclick=()=>exportList("missed");
+  const ef=$("#expflagged"); if(ef) ef.onclick=()=>exportList("flagged");
 
   const c=$("#pcode"), m1=$("#pmsg1"), m2=$("#pmsg2");
   c.onclick=()=>{ if(seen) c.select(); };
@@ -641,7 +761,7 @@ function stats(){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(mockT && !confirm("End the mock exam in progress?")) return;
   if(mockT){clearInterval(mockT);mockT=null;}
-  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; render();
+  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; topicFilter=null; render();
 });
 const THEMES = [
   ["auto","Auto (system)"], ["light","Light"], ["sepia","Sepia"], ["dim","Dim"], ["dark","Dark"]
@@ -706,8 +826,19 @@ addEventListener("keydown",e=>{
   if(!queue.length||/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   const k=e.key.toUpperCase();
   if("ABCD".includes(k)){ const b=document.querySelector(`.opt[data-n="${"ABCD".indexOf(k)}"]`); if(b&&!b.disabled)b.click(); }
+  if("123".includes(e.key)){
+    const idx=+e.key-1;
+    const grade=document.querySelector(`.grades button[data-g="${e.key}"]`);
+    const conf=document.querySelector(`.confidence button[data-c="${e.key}"]`);
+    const opt=document.querySelector(`.opt[data-n="${idx}"]`);
+    if(grade) grade.click();
+    else if(conf) conf.click();
+    else if(opt && !opt.disabled) opt.click();
+  }
   if(e.key===" "){ e.preventDefault(); const r=$("#rv"); if(r) r.click(); }
-  if(e.key==="Enter"){ const n=$("#next"); if(n) n.click(); }
+  if(e.key==="Enter" || e.key==="ArrowRight"){ const n=$("#next"); if(n) n.click(); }
+  if(e.key==="ArrowLeft"){ const p=$("#prev"); if(p) p.click(); }
+  if(k==="F"){ const fb=$("#flagbtn"); if(fb) fb.click(); }
 });
 render();
 </script>
