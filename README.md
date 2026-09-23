@@ -1,6 +1,6 @@
 # TiffLex — UMPJE Review
 
-A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 2,076-question drill bank, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
+A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 1,237-question drill bank of fully original, primary-source-grounded questions, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
 
 **Live app:** https://jfpharmd.github.io/TiffLex/
 **About page:** https://jfpharmd.github.io/TiffLex/welcome.html
@@ -18,7 +18,7 @@ A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisp
 
 ## Why this exists
 
-Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. TiffLex's original questions (tagged "TiffLex original" in the app) and its cram sheet were checked against DEA and FDA primary sources (21 CFR, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules called out directly rather than silently corrected. The commercial-bank questions bundled alongside them (tagged "Sourced") are reproduced from third-party practice materials as provided and have not been independently re-verified by this project.
+Commercial UMPJE question banks are useful but not always current or accurate — federal pharmacy law changes, and some widely-circulated practice questions lag behind it. Every question in TiffLex's bank, and its cram sheet, was written from scratch and checked against current federal primary sources (21 CFR, federal statutes, DEA guidance, FDA compliance pages), with the places where common study material disagrees with current federal rules called out directly rather than silently corrected. Nothing in the bank is reproduced from a commercial question bank — the entire bank is original content written for this project.
 
 ## Disclaimer
 
