@@ -1,6 +1,6 @@
 # TiffLex — UMPJE Review
 
-A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 1,237-question drill bank of fully original, primary-source-grounded questions, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
+A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisprudence Examination) — a 1,500-question drill bank of fully original, primary-source-grounded questions, flashcards, a timed mock exam, and a fact-checked cram sheet, all in a single page that keeps working with zero internet connection.
 
 **Live app:** https://jfpharmd.github.io/TiffLex/
 **About page:** https://jfpharmd.github.io/TiffLex/welcome.html
