@@ -1,7 +1,7 @@
 // TiffLex — offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v6';
+const VERSION = 'v9';
 const CACHE_NAME = 'tifflex-' + VERSION;
 
 const PRECACHE_URLS = [
@@ -9,10 +9,15 @@ const PRECACHE_URLS = [
   './index.html',
   './welcome.html',
   './manifest.json',
+  './favicon.ico',
+  './icon-180.png',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
-  './og-image.png'
+  './mark.svg',
+  './mark-maskable.svg',
+  './og-image.png',
+  './screenshot-app.png'
 ];
 
 self.addEventListener('install', (event) => {

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jfpharmd.github.io/TiffLex/sitemap.xml
