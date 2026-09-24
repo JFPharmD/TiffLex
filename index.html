@@ -168,6 +168,15 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .notebtn{background:var(--surf2);border:1px solid var(--rule);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--mut)}
 .mynote{background:var(--mid-s);color:var(--mid);border-radius:8px;padding:9px 12px;font-size:13.5px;margin:10px 0 0;line-height:1.5}
 .sparkwrap{margin:8px 0 4px}
+.calwrap{margin-top:8px}
+.cal{display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;gap:3px;overflow-x:auto;padding-bottom:2px}
+.calcell{width:11px;height:11px;border-radius:2.5px;background:var(--rule)}
+.calcell-pad{background:transparent}
+.calcell.t1{background:var(--acc);opacity:.35}
+.calcell.t2{background:var(--acc);opacity:.6}
+.calcell.t3{background:var(--acc);opacity:.85}
+.calcell.t4{background:var(--acc);opacity:1}
+.calcell-today{box-shadow:0 0 0 1.5px var(--ink) inset}
 
 /* ---------- bottom bar ---------- */
 .bottom{position:fixed;left:0;right:0;bottom:0;background:var(--surf);border-top:1px solid var(--rule);
@@ -346,20 +355,24 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20";
+const APP_VERSION = "v20.1";
+const APP_UPDATED = "September 23, 2026";
 
-let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false};
+let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 if(!S.daily) S.daily={date:null,count:0};
+if(!S.dailyLog) S.dailyLog={};
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const hist=id=>S.h[id]||(S.h[id]={r:0,w:0,g:0});
 function bumpDaily(n){
   const t=todayStr();
   if(S.daily.date!==t) S.daily={date:t,count:0};
   S.daily.count+=n;
+  if(!S.dailyLog) S.dailyLog={};
+  S.dailyLog[t]=(S.dailyLog[t]||0)+n;
 }
 
-let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null;
+let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null, subdomainFilter=null, customMock=false, speaking=false;
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -581,6 +594,7 @@ function pool(needOpts){
     if(S.focus==="flagged" && !S.flags[q.i]) return false;
     if(S.focus==="due" && !isDue(h)) return false;
     if(topicFilter && topicKey(q.cite)!==topicFilter) return false;
+    if(subdomainFilter && q.sd!==subdomainFilter) return false;
     if(tagFilter && !(S.tags[q.i]||[]).includes(tagFilter)) return false;
     return true;
   });
@@ -602,8 +616,8 @@ function weakDomainHint(){
 function dailyCount(){ return S.daily.date===todayStr() ? S.daily.count : 0; }
 
 /* ---------- setup screens ---------- */
-function chipRow(label,items,active,onclick){
-  return `<p class="lab">${label}</p><div class="chips">`+items.map(([v,t])=>
+function chipRow(label,items,active,extraCls){
+  return `<p class="lab">${label}</p><div class="chips${extraCls?" "+extraCls:""}">`+items.map(([v,t])=>
     `<button class="chip" aria-pressed="${active(v)}" data-v="${v}">${t}</button>`).join("")+`</div>`;
 }
 function allTags(){
@@ -638,25 +652,26 @@ function filters(){
       tags.map(([t,n])=>`<button class="chip tagchip" data-tag="${esc(t)}" aria-pressed="${tagFilter===t}">🏷️ ${esc(t)} <span class="chipn">${n}</span></button>`).join("")+`</div>` : "");
 }
 function wireFilters(root){
-  root.querySelectorAll(".chips").forEach((row)=>{
-    if(row.classList.contains("topicbrowse") || row.classList.contains("tagbrowse")) return;
-    row.querySelectorAll(".chip").forEach((c,idx2)=>{
+  const filterRows = Array.from(root.querySelectorAll(".chips")).filter(row=>
+    !row.classList.contains("topicbrowse") && !row.classList.contains("tagbrowse") && !row.classList.contains("lengthchips"));
+  filterRows.forEach((row)=>{
+    row.querySelectorAll(".chip").forEach((c)=>{
       c.onclick=()=>{
-        const isDomainRow = c.parentElement===root.querySelectorAll(".chips")[0];
+        const isDomainRow = row===filterRows[0];
         const v=c.dataset.v;
         if(isDomainRow){const n=+v; S.dom=S.dom.includes(n)?S.dom.filter(x=>x!==n):S.dom.concat(n); if(!S.dom.length)S.dom=[n];}
         else {S.focus=v}
-        searchFilter=null; topicFilter=null; tagFilter=null; save(); render();
+        searchFilter=null; topicFilter=null; tagFilter=null; subdomainFilter=null; save(); render();
       };
     });
   });
   const tt=root.querySelector("#topicToggle"); if(tt) tt.onclick=()=>{ topicBrowserOpen=!topicBrowserOpen; render(); };
   root.querySelectorAll(".topicchip").forEach(c=>c.onclick=()=>{
-    topicFilter=c.dataset.topic; tagFilter=null; topicBrowserOpen=false; render();
+    topicFilter=c.dataset.topic; tagFilter=null; subdomainFilter=null; topicBrowserOpen=false; render();
   });
   root.querySelectorAll(".tagchip").forEach(c=>c.onclick=()=>{
     tagFilter = tagFilter===c.dataset.tag ? null : c.dataset.tag;
-    topicFilter=null; render();
+    topicFilter=null; subdomainFilter=null; render();
   });
   const ctf=root.querySelector("#clearTagFilter"); if(ctf) ctf.onclick=()=>{ tagFilter=null; render(); };
 }
@@ -669,33 +684,69 @@ function goalBar(){
   </div>`;
 }
 
+/* ---------- text-to-speech ---------- */
+function stopSpeaking(){
+  if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+  speaking=false;
+}
+function speakQuestion(q){
+  if(typeof speechSynthesis==="undefined"){ alert("Read-aloud isn't supported in this browser."); return; }
+  if(speaking){ stopSpeaking(); card(); return; }
+  speechSynthesis.cancel();
+  let text = q.q;
+  const showingAnswer = revealed || (answered!==null && mode!=="mock");
+  if(showingAnswer){
+    if(q.o){ text += `. Correct answer: ${q.o[q.c]}.`; }
+    else if(q.a){ text += `. Answer: ${q.a}.`; }
+    else if(q.L){ text += `. Correct option: ${q.L}.`; }
+    if(q.e) text += " " + q.e;
+  }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.onend = ()=>{ speaking=false; if(queue[pos]===q) card(); };
+  utter.onerror = ()=>{ speaking=false; };
+  speaking=true;
+  speechSynthesis.speak(utter);
+  card();
+}
+
 /* ---------- render ---------- */
 function render(){
+  stopSpeaking();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.m===mode));
   const su=$("#setup"), st=$("#stage"), bt=$("#bottom");
   su.innerHTML=""; st.innerHTML=""; bt.classList.add("hidden");
   if(mode==="sheet") return sheet();
   if(mode==="stats") return stats();
+  if(mode==="glossary") return glossary();
   if(queue.length) return card();
 
   const need = mode!=="cards";
+  const mockCustom = mode==="mock" && customMock;
   const showTopicBanner = topicFilter && mode!=="mock";
+  const showSubdomainBanner = subdomainFilter && mode!=="mock";
   const n = pool(need).length;
   const mockLen = S.mockLen||120, mockMin = Math.round(mockLen/120*180);
   const weak = mode!=="mock" ? weakDomainHint() : null;
+  const dueN = mode!=="mock" ? dueCount() : 0;
+  const showDueBanner = dueN>0 && S.focus!=="due" && !topicFilter && !subdomainFilter && !searchFilter;
   const resumable = mode==="mock" && S.mockInProgress && S.mockInProgress.mockEnd>Date.now();
   const empty = (!n && !searchFilter && mode!=="mock") ? focusEmptyMsg() : null;
   su.innerHTML = `<div class="panel">
     ${goalBar()}
     ${resumable?`<div class="topicbanner"><span>In-progress mock: <b>${S.mockInProgress.mockLog.filter(x=>x!=null).length} of ${S.mockInProgress.ids.length}</b> answered, ${Math.max(0,Math.round((S.mockInProgress.mockEnd-Date.now())/60000))} min left</span><span style="display:flex;gap:6px"><button id="resumeMock">Resume</button><button id="discardMock">Discard</button></span></div>`:""}
     ${showTopicBanner?`<div class="topicbanner"><span>Filtered to <b>${esc(topicFilter)}</b> (${n} question${n===1?"":"s"})</span><button id="clearTopic">Clear</button></div>`:""}
+    ${showSubdomainBanner?`<div class="topicbanner"><span>Filtered to <b>${esc(subdomainFilter)}</b> (${n} question${n===1?"":"s"})</span><button id="clearSubdomain">Clear</button></div>`:""}
+    ${showDueBanner?`<div class="topicbanner"><span><b>${dueN} question${dueN===1?"":"s"}</b> due for spaced-repetition review today</span><button id="drillDueBanner">Review now</button></div>`:""}
     ${weak?`<div class="topicbanner"><span>Weakest so far: <b>Domain ${weak.d} · ${DOMS[weak.d]}</b> (${weak.pct}% correct)</span><button id="drillWeak">Drill this</button></div>`:""}
     <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:12px">${
       mode==="drill" ? "Multiple choice with the answer and explanation after each question."
       : mode==="cards" ? "Read the question, answer it out loud, then check yourself. Missed cards come back."
+      : mockCustom ? "Timed like a mock exam, but built from the domain/focus filters you pick below instead of the full blueprint mix."
       : `${mockLen} questions, ${mockMin} minutes, weighted like the real blueprint. No feedback until you finish.`}</p>
     ${mode==="cards"?`<label class="opt-toggle" style="padding:0 0 14px;margin-left:-10px"><input type="checkbox" id="readThroughToggle" ${S.readThrough?"checked":""}><span>Read-through mode — show each answer right away, no self-grading</span></label>`:``}
-    ${mode==="mock"?chipRow("Length",[[20,"Quick · 20"],[40,"Short · 40"],[60,"Half · 60"],[120,"Full · 120"]],v=>mockLen===+v):filters()}
+    ${mode==="mock"?chipRow("Length",[[20,"Quick · 20"],[40,"Short · 40"],[60,"Half · 60"],[120,"Full · 120"]],v=>mockLen===+v,"lengthchips"):filters()}
+    ${mode==="mock"?`<label class="opt-toggle" style="padding:0 0 14px;margin-left:-10px"><input type="checkbox" id="customMockToggle" ${customMock?"checked":""}><span>Build a custom mix — pick domains, topics, or missed/due questions instead of the full blueprint</span></label>`:``}
+    ${mockCustom?filters():``}
     ${mode!=="mock"?`<p class="lab" style="margin-top:14px">Search all ${BANK.length} questions</p>
     <div class="row" style="gap:6px">
       <input class="find" id="banksearch" style="flex:1" placeholder="Try “biennial inventory” or “21 CFR 1306”" value="${searchFilter?esc(searchFilter):""}">
@@ -704,14 +755,17 @@ function render(){
     <p class="note" id="searchNote" style="margin-top:6px${searchFilter?"":";display:none"}">Search overrides the domain and focus filters above.</p>`:``}
     ${empty?emptyState(empty.kind,empty.msg,empty.tip):""}
     <button class="go" id="go" style="margin-top:16px">${mode==="mock"?`Start the ${mockMin}-minute mock`:"Start"}</button>
-    <p class="avail" id="matchtext">${mode==="mock"?"Drawn from the cleanest multiple-choice questions across all four domains"
+    <p class="avail" id="matchtext">${mode==="mock"?(mockCustom?`${pool(true).length} question${pool(true).length===1?"":"s"} match these filters`:"Drawn from the cleanest multiple-choice questions across all four domains")
       :`${n} question${n===1?"":"s"} match ${searchFilter?"your search":"these filters"}`}</p></div>`;
   if(mode==="mock"){
-    su.querySelectorAll(".chips .chip").forEach(c=>c.onclick=()=>{
+    su.querySelectorAll(".chips.lengthchips .chip").forEach(c=>c.onclick=()=>{
       S.mockLen=+c.dataset.v; save(); render();
     });
+    if(mockCustom) wireFilters(su);
     const rm=$("#resumeMock"); if(rm) rm.onclick=resumeMock;
     const dm=$("#discardMock"); if(dm) dm.onclick=()=>{ S.mockInProgress=null; save(); render(); };
+    const cmt=$("#customMockToggle"); if(cmt) cmt.onchange=()=>{ customMock=cmt.checked; render(); };
+    if(mockCustom && !pool(true).length) $("#go").disabled=true;
   } else {
     wireFilters(su);
     const bs=$("#banksearch");
@@ -729,6 +783,8 @@ function render(){
   $("#go").onclick=start;
   if(!n && mode!=="mock") $("#go").disabled=true;
   const ct=$("#clearTopic"); if(ct) ct.onclick=()=>{ topicFilter=null; render(); };
+  const csd=$("#clearSubdomain"); if(csd) csd.onclick=()=>{ subdomainFilter=null; render(); };
+  const ddb=$("#drillDueBanner"); if(ddb) ddb.onclick=()=>{ S.focus="due"; searchFilter=null; save(); render(); };
   const dw=$("#drillWeak"); if(dw) dw.onclick=()=>{ S.dom=[weak.d]; S.focus="all"; searchFilter=null; save(); render(); };
   const ge=$("#goalEdit"); if(ge) ge.onclick=()=>{
     const v=prompt("Daily question goal:", S.dailyGoal||20);
@@ -742,13 +798,17 @@ function start(){
   sess={r:0,n:0}; mockLog=[]; pos=0; answered=null; revealed=false; confPick=null; sessWrongs=[];
   if(mode==="mock"){
     const mockLen = S.mockLen||120;
-    const clean = BANK.filter(q=>q.o && q.v<=1);
-    queue=[];
-    for(const d of [1,2,3,4]){
-      const g=shuffle(clean.filter(q=>q.d===+d)).slice(0, Math.round(mockLen*WEIGHT[d]/100));
-      queue=queue.concat(g);
+    if(customMock){
+      queue = shuffle(pool(true)).slice(0, mockLen);
+    } else {
+      const clean = BANK.filter(q=>q.o && q.v<=1);
+      queue=[];
+      for(const d of [1,2,3,4]){
+        const g=shuffle(clean.filter(q=>q.d===+d)).slice(0, Math.round(mockLen*WEIGHT[d]/100));
+        queue=queue.concat(g);
+      }
+      queue=shuffle(queue).slice(0,mockLen);
     }
-    queue=shuffle(queue).slice(0,mockLen);
     mockEnd=Date.now()+Math.round(mockLen/120*180)*60000;
     mockT=setInterval(tick,1000);
     mockTimes=[]; mockPosStart=Date.now();
@@ -825,6 +885,7 @@ function card(){
     (h&&h.w?`<span class="warn">missed ${h.w}×</span>`:``) +
     myTags.map(t=>`<span class="tagchip-mini" data-rmtag="${esc(t)}">🏷️ ${esc(t)} ✕</span>`).join("") +
     `<button class="flagbtn${S.flags[q.i]?" on":""}" id="flagbtn" aria-pressed="${!!S.flags[q.i]}">${S.flags[q.i]?"★ Flagged":"☆ Flag"}</button>` +
+    `<button class="notebtn" id="ttsbtn" aria-pressed="${speaking}">${speaking?"⏹ Stop":"🔊 Read aloud"}</button>` +
     `<button class="notebtn" id="notebtn">${S.notes[q.i]?"📝 Edit note":"+ Note"}</button>` +
     `<button class="notebtn" id="tagbtn">🏷️ Tag</button>` +
     `<a class="notebtn" href="${reportHref(q)}" title="Email a report about this question">⚑ Report</a>`;
@@ -902,6 +963,7 @@ function card(){
   const nx=$("#next"); if(nx) nx.onclick=()=>{ clearUndo(); next(); };
   const pv=$("#prev"); if(pv) pv.onclick=()=>{
     if(pos>0){
+      stopSpeaking();
       if(mode==="mock"){ mockTimes[pos]=(mockTimes[pos]||0)+(Date.now()-mockPosStart); }
       pos--;answered=mockLog[pos]??null;
       if(mode==="mock") mockPosStart=Date.now();
@@ -911,6 +973,7 @@ function card(){
   const qt=$("#quit"); if(qt) qt.onclick=finish;
   const sk=$("#skip"); if(sk) sk.onclick=()=>{
     if(queue.length<2) return;
+    stopSpeaking();
     const wasLast = pos===queue.length-1;
     const [item]=queue.splice(pos,1);
     queue.push(item);
@@ -926,6 +989,7 @@ function card(){
     if(S.flags[q.i]) delete S.flags[q.i]; else { S.flags[q.i]=true; soundFlag(); }
     save(); card();
   };
+  const ttsb=$("#ttsbtn"); if(ttsb) ttsb.onclick=()=>speakQuestion(q);
   const nb=$("#notebtn"); if(nb) nb.onclick=()=>{
     const cur=S.notes[q.i]||"";
     const val=prompt("Your note for this question:", cur);
@@ -981,6 +1045,7 @@ function wireSwipe(container){
 }
 
 function next(){
+  stopSpeaking();
   if(mode==="mock"){ mockTimes[pos]=(mockTimes[pos]||0)+(Date.now()-mockPosStart); }
   if(mode==="mock" && pos===queue.length-1) return finish();
   if(pos===queue.length-1) return finish();
@@ -990,6 +1055,7 @@ function next(){
 }
 
 function finish(){
+  stopSpeaking();
   if(mockT){clearInterval(mockT); mockT=null;}
   const st=$("#stage"); $("#bottom").classList.add("hidden");
   let right=0, byDom={1:[0,0],2:[0,0],3:[0,0],4:[0,0]}, wrongs=[], slowest=[];
@@ -1122,6 +1188,35 @@ function exportList(kind){
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
 
+function streakCalendar(){
+  const numWeeks=12, totalDays=numWeeks*7;
+  const end=new Date(); end.setHours(0,0,0,0);
+  const start=new Date(end); start.setDate(start.getDate()-(totalDays-1));
+  const startDow=start.getDay();
+  const today=todayStr();
+  const cells=[];
+  for(let i=0;i<startDow;i++) cells.push(null);
+  for(let i=0;i<totalDays;i++){
+    const d=new Date(start); d.setDate(d.getDate()+i);
+    const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    cells.push({key, count:(S.dailyLog&&S.dailyLog[key])||0, isToday:key===today});
+  }
+  const goal=S.dailyGoal||20;
+  const tier=c=>{
+    if(!c) return 0;
+    if(c<Math.ceil(goal*0.25)) return 1;
+    if(c<Math.ceil(goal*0.6)) return 2;
+    if(c<goal) return 3;
+    return 4;
+  };
+  const totalActive=Object.values(S.dailyLog||{}).filter(c=>c>0).length;
+  return `<div class="calwrap">
+    <div class="cal">${cells.map(c=>c
+      ? `<div class="calcell t${tier(c.count)}${c.isToday?" calcell-today":""}" title="${c.key}: ${c.count} question${c.count===1?"":"s"}"></div>`
+      : `<div class="calcell calcell-pad"></div>`).join("")}</div>
+    <p class="note" style="margin-top:6px">Last ${numWeeks} weeks · ${totalActive} active day${totalActive===1?"":"s"}</p>
+  </div>`;
+}
 function sparkline(history){
   if(!history || history.length<2) return "";
   const w=280,h=40,pad=4;
@@ -1154,6 +1249,70 @@ function startFinalReview(){
   render();
 }
 
+function topicGroup(key){
+  let m = key.match(/^(\d{1,3})\s*CFR\b/);
+  if(m) return `${m[1]} CFR`;
+  m = key.match(/^(\d{1,3})\s*U\.S\.C\./);
+  if(m) return `${m[1]} U.S.C.`;
+  if(/^USP/i.test(key)) return "USP";
+  if(/^NIOSH/i.test(key)) return "NIOSH";
+  return "Other";
+}
+function glossary(){
+  const agg={};
+  BANK.forEach(q=>{
+    const k=topicKey(q.cite);
+    if(!agg[k]) agg[k]={n:0, r:0, t:0, d:q.d};
+    agg[k].n++;
+    const hh=S.h[q.i];
+    if(hh){ agg[k].r+=hh.r; agg[k].t+=hh.r+hh.w; }
+  });
+  const groups={};
+  Object.entries(agg).forEach(([k,v])=>{
+    const g=topicGroup(k);
+    (groups[g]=groups[g]||[]).push([k,v]);
+  });
+  const groupOrder = Object.keys(groups).sort((a,b)=>{
+    if(a==="Other") return 1; if(b==="Other") return -1;
+    return a.localeCompare(b, undefined, {numeric:true});
+  });
+  groupOrder.forEach(g=>groups[g].sort((a,b)=>a[0].localeCompare(b[0], undefined, {numeric:true})));
+  const totalTopics = Object.keys(agg).length;
+
+  const listHTML = (filterText)=>{
+    const ft=(filterText||"").trim().toLowerCase();
+    let html="";
+    groupOrder.forEach(g=>{
+      const rows = groups[g].filter(([k])=>!ft || k.toLowerCase().includes(ft));
+      if(!rows.length) return;
+      html += `<p class="lab" style="margin-top:18px">${esc(g)} <span style="color:var(--mut);font-weight:400">(${rows.length})</span></p>
+      <div class="topiclist">${rows.map(([k,v])=>{
+        const pct = v.t ? Math.round(v.r/v.t*100) : null;
+        return `<button class="topicrow" data-topic="${esc(k)}"><span>${domDot(v.d)}${esc(k)} <span style="color:var(--mut);font-weight:400">(${v.n})</span></span><b>${pct!==null?pct+"%":"—"}</b></button>`;
+      }).join("")}</div>`;
+    });
+    if(!html) html = `<p class="note" style="margin-top:18px">No citations match “${esc(filterText)}”.</p>`;
+    return html;
+  };
+  const wireList = ()=>{
+    $("#stage").querySelectorAll(".topicrow").forEach(b=>b.onclick=()=>{
+      topicFilter=b.dataset.topic; subdomainFilter=null; tagFilter=null; searchFilter=null;
+      S.focus="all"; save(); mode="drill"; queue=[]; render();
+    });
+  };
+  $("#stage").innerHTML = `<div class="panel">
+    <div class="row" style="align-items:center;gap:10px;margin-bottom:2px">
+      <button class="ghost" id="glossaryBack" style="flex:none;padding:6px 13px;font-size:13px">← Back</button>
+      <p class="lab" style="margin:0">Citation glossary — ${totalTopics} topics across the question bank</p>
+    </div>
+    <input class="find" id="glosSearch" style="margin-top:12px" placeholder="Filter by citation, e.g. “21 CFR” or “355”">
+    <div id="glosList">${listHTML("")}</div>
+  </div>`;
+  wireList();
+  $("#glossaryBack").onclick=()=>{ mode="stats"; render(); };
+  $("#glosSearch").oninput=e=>{ $("#glosList").innerHTML=listHTML(e.target.value); wireList(); };
+}
+
 function stats(){
   const ids=Object.keys(S.h);
   const seen=ids.length, r=ids.reduce((a,i)=>a+S.h[i].r,0), w=ids.reduce((a,i)=>a+S.h[i].w,0);
@@ -1178,6 +1337,19 @@ function stats(){
     .sort((a,b)=>a[1]-b[1])
     .slice(0,6);
 
+  const sdAgg={};
+  BANK.forEach(q=>{
+    const hh=S.h[q.i]; if(!hh || !q.sd) return;
+    if(!sdAgg[q.sd]) sdAgg[q.sd]={r:0,t:0,d:q.d};
+    sdAgg[q.sd].r+=hh.r; sdAgg[q.sd].t+=hh.r+hh.w;
+  });
+  const weakSubdomains = Object.entries(sdAgg)
+    .filter(([k,v])=>v.t>=3)
+    .map(([k,v])=>[k, Math.round(v.r/v.t*100), v.t, v.d])
+    .sort((a,b)=>a[1]-b[1])
+    .slice(0,8);
+
+  const dueN = dueCount();
   const rd = readiness();
   $("#stage").innerHTML=`<div class="panel">
     ${seen?`<div class="row" style="align-items:center;gap:16px;margin-bottom:18px">
@@ -1189,20 +1361,27 @@ function stats(){
     <div class="meter"><div class="bar"><i style="width:${seen/BANK.length*100}%"></i></div></div>
     <div class="dom"><span>Answered correctly</span><b>${r}</b><span>Answered wrong, shaky, or guessed</span><b>${w}</b>
       <span>In your missed pile</span><b>${missed}</b><span>Flagged questions</span><b>${flagged}</b></div>
+    <p class="lab" style="margin-top:22px">Study activity</p>
+    ${streakCalendar()}
     <p class="lab" style="margin-top:22px">Accuracy by domain</p>
     <div class="dom">${weak.map(([d,rr,tt])=>
       `<span>${domDot(d)}Domain ${d} · ${DOMS[d]}</span><b>${tt?Math.round(rr/tt*100)+"%":"—"}</b>`).join("")}</div>
+    ${weakSubdomains.length?`<p class="lab" style="margin-top:22px">Your weakest sub-topics (3+ questions seen) — tap one to drill it</p>
+    <div class="topiclist">${weakSubdomains.map(([k,pct,tt,d])=>
+      `<button class="topicrow" data-subdomain="${esc(k)}"><span>${domDot(d)}${esc(k)}</span><b>${pct}% <span style="color:var(--mut);font-weight:400">(${tt})</span></b></button>`).join("")}</div>`:``}
     ${weakTopics.length?`<p class="lab" style="margin-top:22px">Your weakest topics (3+ questions seen) — tap one to drill it</p>
     <div class="topiclist">${weakTopics.map(([k,pct,tt])=>
       `<button class="topicrow" data-topic="${esc(k)}"><span>${esc(k)}</span><b>${pct}% <span style="color:var(--mut);font-weight:400">(${tt})</span></b></button>`).join("")}</div>`:``}
+    <p class="note" style="margin-top:10px"><button class="ghost" id="openGlossary" style="padding:5px 12px;font-size:12.5px">📚 Browse the full citation glossary</button></p>
     ${S.mockHistory&&S.mockHistory.length>1?`<p class="lab" style="margin-top:22px">Mock exam history</p>
     ${sparkline(S.mockHistory)}
     <div class="dom">${S.mockHistory.slice(-6).reverse().map(m=>
       `<span>${m.date}</span><b>${m.pct}% <span style="color:var(--mut);font-weight:400">(${m.right}/${m.total})</span></b>`).join("")}</div>`:``}
     <div class="row" style="margin-top:20px;gap:8px">
-      <button class="go" id="drillmiss" style="flex:1;margin-top:0">Drill only what I missed</button>
+      <button class="go" id="drillmiss" style="flex:1;margin-top:0">Retest missed (${missed})</button>
       <button class="go" id="drillflagged" style="flex:1;margin-top:0" ${flagged?"":"disabled"}>Drill flagged (${flagged})</button>
     </div>
+    <button class="go" id="drilldue" style="margin-top:8px" ${dueN?"":"disabled"}>Review due for spaced repetition (${dueN})</button>
     <button class="go" id="finalreview" style="margin-top:8px">Final review (flagged + missed + weak topics)</button>
     <div class="row" style="margin-top:8px;gap:8px">
       <button id="expmissed" style="flex:1" ${missed?"":"disabled"}>Export missed (${missed})</button>
@@ -1234,15 +1413,19 @@ function stats(){
   <div class="panel">
     <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:6px">Feedback</p>
     <p class="note">Found a wrong answer, a confusing question, or something that broke? <a href="mailto:TiffLexUMPJE@gmail.com?subject=TiffLex%20feedback">Email TiffLexUMPJE@gmail.com</a> — it helps a lot.</p>
-    <p class="note" style="margin-top:8px;color:var(--mut)">TiffLex ${APP_VERSION}</p>
+    <p class="note" style="margin-top:8px;color:var(--mut)">Last updated ${APP_UPDATED} · TiffLex ${APP_VERSION}</p>
   </div>`;
-  $("#drillmiss").onclick=()=>{ S.focus="missed"; searchFilter=null; save(); mode="drill"; queue=[]; render(); };
-  const df=$("#drillflagged"); if(df) df.onclick=()=>{ S.focus="flagged"; searchFilter=null; save(); mode="drill"; queue=[]; render(); };
+  $("#drillmiss").onclick=()=>{ S.focus="missed"; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
+  const df=$("#drillflagged"); if(df) df.onclick=()=>{ S.focus="flagged"; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
+  const dd=$("#drilldue"); if(dd) dd.onclick=()=>{ S.focus="due"; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
   const em=$("#expmissed"); if(em) em.onclick=()=>exportList("missed");
   const ef=$("#expflagged"); if(ef) ef.onclick=()=>exportList("flagged");
   const fr=$("#finalreview"); if(fr) fr.onclick=startFinalReview;
+  const og=$("#openGlossary"); if(og) og.onclick=()=>{ mode="glossary"; render(); };
   $("#stage").querySelectorAll(".topicrow").forEach(b=>b.onclick=()=>{
-    topicFilter=b.dataset.topic; S.focus="all"; searchFilter=null; save(); mode="drill"; queue=[]; render();
+    if(b.dataset.subdomain){ subdomainFilter=b.dataset.subdomain; topicFilter=null; }
+    else { topicFilter=b.dataset.topic; subdomainFilter=null; }
+    S.focus="all"; searchFilter=null; save(); mode="drill"; queue=[]; render();
   });
 
   const c=$("#pcode"), m1=$("#pmsg1"), m2=$("#pmsg2");
@@ -1287,7 +1470,7 @@ function stats(){
         const obj=JSON.parse(reader.result);
         if(!obj || typeof obj!=="object" || !obj.h) throw new Error("not a TiffLex backup");
         if(!confirm("Replace everything on this device with this backup file?")){ rf.value=""; return; }
-        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false}, obj);
+        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false}, obj);
         save();
         m3.textContent="Restored — reloading…"; m3.className="msg ok";
         setTimeout(()=>location.reload(), 700);
@@ -1302,7 +1485,7 @@ function stats(){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(mockT && !confirm("End the mock exam in progress?")) return;
   if(mockT){clearInterval(mockT);mockT=null;}
-  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; topicFilter=null; searchFilter=null; render();
+  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; topicFilter=null; searchFilter=null; subdomainFilter=null; customMock=false; render();
 });
 const THEMES = [
   ["auto","Auto (system)"], ["light","Light"], ["sepia","Sepia"], ["dim","Dim"], ["dark","Dark"], ["oled","OLED black"]
