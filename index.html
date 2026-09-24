@@ -391,14 +391,15 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.4";
+const APP_VERSION = "v20.5";
 const APP_UPDATED = "September 23, 2026";
 
-let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false};
+let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 if(!S.daily) S.daily={date:null,count:0};
 if(!S.dailyLog) S.dailyLog={};
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const persistLocal=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const save=()=>{ S.lastModified=Date.now(); persistLocal(); queueCloudPush(); };
 const hist=id=>S.h[id]||(S.h[id]={r:0,w:0,g:0});
 function bumpDaily(n){
   const t=todayStr();
@@ -1292,6 +1293,108 @@ function applyProg(inc, replace){
   save(); return n;
 }
 
+/* ---------- cloud sync (optional, off by default) ----------
+   A random code identifies a small JSON blob in a Cloudflare Worker + KV
+   store. No accounts, no email, no password: knowing the code is what
+   grants access, same trust model as the manual progress code above, just
+   automatic. Local storage stays the source of truth at all times; a
+   fetch failure (offline, blocked, endpoint down) always fails silent and
+   never blocks or corrupts anything on this device. */
+const SYNC_ENDPOINT = "https://tifflex-sync.justinafenley.workers.dev/sync/";
+const SYNC_FIELDS = ["h","flags","streak","mockHistory","notes","dailyGoal","daily","dailyLog","tags","bankCompleteShown","presets","examDate"];
+// Deliberately excludes dom/focus/mockLen (today's active filter/view) and all
+// display prefs (theme, textSize, etc.) so a pull landing mid-session can never
+// yank the screen out from under someone; only accumulated progress syncs.
+function genSyncCode(){
+  const chars="ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L, avoids transcription mixups
+  let s=""; for(let i=0;i<10;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function syncStatusText(){
+  if(!navigator.onLine) return "Offline. Will sync automatically once you're back online.";
+  if(!S.lastSyncedAt) return "Not synced yet.";
+  const secs=Math.round((Date.now()-S.lastSyncedAt)/1000);
+  if(secs<10) return "Synced just now.";
+  if(secs<60) return `Synced ${secs}s ago.`;
+  const mins=Math.round(secs/60);
+  if(mins<60) return `Synced ${mins} minute${mins===1?"":"s"} ago.`;
+  const hrs=Math.round(mins/60);
+  if(hrs<24) return `Synced ${hrs} hour${hrs===1?"":"s"} ago.`;
+  return `Synced ${Math.round(hrs/24)} day${Math.round(hrs/24)===1?"":"s"} ago.`;
+}
+let cloudPushTimer=null;
+function queueCloudPush(){
+  if(!S.syncEnabled || !S.syncId) return;
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer=setTimeout(cloudSyncPush, 2000);
+}
+async function cloudSyncPush(){
+  if(!S.syncEnabled || !S.syncId || !navigator.onLine) return false;
+  const payload={}; for(const k of SYNC_FIELDS) payload[k]=S[k];
+  const body=JSON.stringify(payload);
+  if(body.length > 900000) return false; // guards against the worker's 1MB ceiling; real payloads are a tiny fraction of this
+  try{
+    const res=await fetch(SYNC_ENDPOINT+encodeURIComponent(S.syncId), {method:"PUT", headers:{"Content-Type":"application/json"}, body});
+    if(!res.ok) return false;
+    const out=await res.json();
+    S.lastModified=out.updatedAt; S.lastSyncedAt=Date.now(); persistLocal();
+    const st=document.getElementById("syncstatus"); if(st) st.textContent=syncStatusText();
+    return true;
+  }catch(e){ return false; }
+}
+async function cloudSyncPull(silent, force){
+  if(!S.syncEnabled || !S.syncId || !navigator.onLine) return false;
+  try{
+    const res=await fetch(SYNC_ENDPOINT+encodeURIComponent(S.syncId));
+    if(!res.ok) return false;
+    const record=await res.json();
+    if(record.found && record.data && (force || record.updatedAt > (S.lastModified||0))){
+      for(const k of SYNC_FIELDS) if(k in record.data) S[k]=record.data[k];
+      S.lastModified=record.updatedAt; S.lastSyncedAt=Date.now(); persistLocal();
+      if(!silent) render();
+      return true;
+    }
+    S.lastSyncedAt=Date.now(); persistLocal();
+    return false;
+  }catch(e){ return false; }
+}
+function cloudSyncInit(){
+  if(S.syncEnabled && S.syncId) cloudSyncPull(false);
+}
+function syncPanelHtml(){
+  if(S.syncEnabled && S.syncId){
+    return `<p class="note">On. This device's progress follows the code below automatically whenever it's online. Enter the same code on another device to link it too.</p>
+    <textarea class="code" id="synccode" readonly spellcheck="false">${esc(S.syncId)}</textarea>
+    <div class="row"><button class="key" id="synccopy">Copy code</button>
+      <button id="syncoff">Turn off</button></div>
+    <p class="note" id="syncstatus" style="margin-top:4px">${syncStatusText()}</p>
+    <p class="msg" id="syncmsg1"></p>`;
+  }
+  if(S.syncId){
+    return `<p class="note">Sync is off on this device right now. Your code is still saved below; resuming picks up right where the synced copy left off.</p>
+    <textarea class="code" id="synccode" readonly spellcheck="false">${esc(S.syncId)}</textarea>
+    <div class="row"><button class="key" id="syncresume">Resume sync</button></div>
+    <p class="msg" id="syncmsg1"></p>`;
+  }
+  return `<p class="note">Optional. Turn this on and your progress follows you automatically between devices that share a code, no account needed. Everything still works fully offline either way; sync just happens quietly in the background whenever you're online.</p>
+  <button class="key" id="syncnew">Turn on sync</button>
+  <p class="note" style="margin-top:12px">Already have a code from another device?</p>
+  <textarea class="code" id="syncin" spellcheck="false" placeholder="Enter your sync code"></textarea>
+  <button id="synclink">Link this device</button>
+  <p class="msg" id="syncmsg2"></p>`;
+}
+// Background checks stay silent (no render()) so a pull landing mid-drill or
+// mid-mock can never redraw the screen out from under someone; the freshly
+// synced data is just sitting in S, ready for the next natural render (e.g.
+// opening the Progress tab) to pick up.
+window.addEventListener("online", ()=>{ if(S.syncEnabled && S.syncId) cloudSyncPull(true).then(queueCloudPush); });
+let lastVisibilityPull=0;
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible" && S.syncEnabled && S.syncId && Date.now()-lastVisibilityPull>30000){
+    lastVisibilityPull=Date.now(); cloudSyncPull(true);
+  }
+});
+
 /* ---------- sheet + stats ---------- */
 function sheet(){
   $("#setup").innerHTML = `<div class="row" style="gap:6px">
@@ -1575,8 +1678,13 @@ function stats(){
     <button id="expanki" style="margin-top:8px" ${missed?"":"disabled"}>📇 Export missed to Anki</button></div>
 
   <div class="panel">
-    <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:10px">Move progress to another device</p>
-    <p class="note">Your answers are saved in this browser only. To carry them to your phone, copy the code below, send it to yourself however is easiest, and paste it into this same box over there.</p>
+    <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:10px">Sync across devices</p>
+    ${syncPanelHtml()}
+  </div>
+
+  <div class="panel">
+    <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:10px">Move progress to another device manually</p>
+    <p class="note">By default, your answers are saved in this browser only. If you'd rather not use sync above, you can still move things by hand: copy the code below, send it to yourself however is easiest, and paste it into this same box over there.</p>
     <textarea class="code" id="pcode" readonly spellcheck="false">${seen?encodeProg():"Nothing recorded yet. Answer a few questions first."}</textarea>
     <div class="row"><button class="key" id="pcopy" ${seen?"":"disabled"}>Copy my code</button>
       <span class="msg" id="pmsg1" style="align-self:center"></span></div>
@@ -1638,6 +1746,40 @@ function stats(){
   $("#pmerge").onclick=()=>load(false);
   $("#preplace").onclick=()=>{ if(confirm("Throw away this device's history and use the pasted code instead?")) load(true); };
 
+  const sNew=$("#syncnew"); if(sNew) sNew.onclick=()=>{
+    S.syncId=genSyncCode(); S.syncEnabled=true; save();
+    cloudSyncPush(); stats();
+  };
+  const sResume=$("#syncresume"); if(sResume) sResume.onclick=()=>{
+    S.syncEnabled=true; save();
+    cloudSyncPull(false).then(queueCloudPush); stats();
+  };
+  const sOff=$("#syncoff"); if(sOff) sOff.onclick=()=>{
+    S.syncEnabled=false; save(); stats();
+  };
+  const sCopy=$("#synccopy"); if(sCopy) sCopy.onclick=async()=>{
+    const el=$("#synccode"); el.select();
+    let ok=false;
+    try{ await navigator.clipboard.writeText(S.syncId); ok=true; }
+    catch(e){ try{ ok=document.execCommand("copy"); }catch(e2){} }
+    const m=$("#syncmsg1");
+    m.textContent = ok ? "Copied." : "Copy didn't work here. The code is selected, so use your browser's copy.";
+    m.className = "msg " + (ok?"ok":"bad");
+  };
+  const sLink=$("#synclink"); if(sLink) sLink.onclick=async()=>{
+    const raw=($("#syncin").value||"").trim().toUpperCase();
+    const m=$("#syncmsg2");
+    if(!/^[A-Z0-9]{6,20}$/.test(raw)){ m.textContent="That doesn't look like a valid sync code."; m.className="msg bad"; return; }
+    if(Object.keys(S.h).length>0 && !confirm("Linking will replace this device's progress with the code's synced progress. Continue?")) return;
+    S.syncId=raw; S.syncEnabled=true; save();
+    m.textContent="Linking…"; m.className="msg";
+    const applied = await cloudSyncPull(true, true);
+    await cloudSyncPush();
+    m.textContent = applied ? "Linked. Pulled in the synced progress." : "Linked. No progress found yet under that code; this device's progress will be saved there now.";
+    m.className="msg ok";
+    setTimeout(stats, 900);
+  };
+
   const m3=$("#pmsg3");
   const db=$("#dlbackup"); if(db) db.onclick=()=>{
     const blob=new Blob([JSON.stringify(S,null,2)], {type:"application/json"});
@@ -1657,7 +1799,7 @@ function stats(){
         const obj=JSON.parse(reader.result);
         if(!obj || typeof obj!=="object" || !obj.h) throw new Error("not a TiffLex backup");
         if(!confirm("Replace everything on this device with this backup file?")){ rf.value=""; return; }
-        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false,haptics:true,bankCompleteShown:false,presets:[],lastSeenVersion:APP_VERSION,installBannerDismissed:false}, obj);
+        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false,haptics:true,bankCompleteShown:false,presets:[],lastSeenVersion:APP_VERSION,installBannerDismissed:false,syncId:null,syncEnabled:false,lastSyncedAt:null,lastModified:0}, obj);
         save();
         m3.textContent="Restored, reloading…"; m3.className="msg ok";
         setTimeout(()=>location.reload(), 700);
@@ -1798,6 +1940,7 @@ function showShortcutsHelp(){
   $("#onboardGo").onclick=()=>{ el.innerHTML=""; };
 }
 render();
+cloudSyncInit();
 
 function showOnboarding(){
   const el=$("#onboard");
@@ -1833,6 +1976,9 @@ const CHANGELOG = {
     "A cleaner print layout for the cram sheet",
     "Share your mock exam score",
     "A proper \"update available\" banner instead of silently swapping versions underneath you"
+  ],
+  "v20.5": [
+    "Optional sync: turn it on in Progress and your history follows you between devices automatically, no account needed"
   ]
 };
 function showWhatsNew(version){

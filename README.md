@@ -15,6 +15,7 @@ A free, offline review tool for the **Uniform MPJE** (Multistate Pharmacy Jurisp
 - **Cram sheet**: a condensed, domain-organized reference of the numbers, forms, and deadlines that actually get tested, with the spots where common commercial question banks are outdated flagged explicitly
 - **Fully offline**: everything (question bank, cram sheet, your progress) lives in the browser; nothing is sent to a server, there's no login, and after the first load it keeps working with no connection at all
 - **Installable**: works as a Progressive Web App, so it can be added to a phone's home screen and launches full-screen like a native app
+- **Optional sync**: turn on device sync in the Progress tab and your history follows you between devices automatically, tied to a random code you control rather than an account; off by default, and everything above still holds true if you leave it off
 
 ## Install as an app
 
