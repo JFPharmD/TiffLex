@@ -120,6 +120,22 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .meter{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;color:var(--mut)}
 .bar{flex:1;height:5px;background:var(--rule);border-radius:3px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--acc);width:0}
+.bar-animate i{animation:barFillIn .7s cubic-bezier(.22,.9,.3,1)}
+@keyframes barFillIn{from{width:0}}
+.panel-enter{animation:panelIn .22s ease}
+@keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* ---------- top banners: update-available / install prompt ---------- */
+/* Normal document flow (not fixed) so they push the sticky header down
+   instead of overlapping it, and scroll away rather than sitting on top
+   of it once the header sticks. */
+#topBanners{position:relative;z-index:25;display:flex;flex-direction:column}
+.topbanner{background:var(--acc);color:var(--go-ink);border-bottom:1px solid rgba(127,127,127,.25);
+  display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;
+  padding:10px 16px;font-size:13.5px;animation:topbannerIn .25s ease}
+.topbanner button{background:rgba(127,127,127,.22);border:1px solid currentColor;color:inherit;
+  border-radius:999px;padding:5px 14px;font-size:12.5px;flex-shrink:0}
+.topbanner .tb-x{background:none;border:0;opacity:.7;padding:2px 6px;font-size:16px;line-height:1}
+@keyframes topbannerIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .score b{color:var(--ink);font-weight:600}
 
 /* ---------- card ---------- */
@@ -158,6 +174,13 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .confidence button{flex:1;border:1px solid var(--rule);background:var(--surf2);border-radius:8px;padding:9px 6px;font-size:13px;color:var(--mut)}
 .confidence button.sel{background:var(--acc-s);color:var(--acc);border-color:var(--acc);font-weight:600}
 .swipehint{text-align:center;font-size:12px;color:var(--mut);margin:10px 0 0}
+/* ---------- celebratory moments ---------- */
+.confetti-piece{position:fixed;top:-14px;width:8px;height:14px;opacity:.9;z-index:90;pointer-events:none;animation-name:confettiFall;animation-timing-function:cubic-bezier(.3,.6,.7,1);animation-fill-mode:forwards}
+@keyframes confettiFall{to{transform:translateY(112vh) rotate(560deg);opacity:.15}}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.28);z-index:91;animation:toastIn .25s ease;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast-out{animation:toastOut .25s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(-50%) translateY(10px)}}
 .citerow{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .citechip{font-size:12.5px;color:var(--acc);text-decoration:none;border:1px solid var(--rule);border-radius:999px;padding:5px 11px;background:var(--surf2);display:inline-flex;align-items:center;gap:4px}
 .citechip.plain{color:var(--mut)}
@@ -189,6 +212,15 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 
 /* ---------- sheet ---------- */
 .sheet{font-size:calc(15.5px * var(--text-scale,1))}
+@media print{
+  header, .bottom, #setup, #topBanners, #onboard, .topicbanner, .goalring{display:none !important}
+  body{background:#fff !important;color:#111 !important}
+  .panel{box-shadow:none !important;border:0 !important;background:#fff !important;color:#111 !important;padding:0 !important}
+  .sheet{max-width:100% !important;font-size:12.5pt !important}
+  .sheet h2, .sheet h3{page-break-after:avoid}
+  .sheet table, .sheet .grid, .sheet ul, .sheet ol{page-break-inside:avoid}
+  a{color:#111 !important;text-decoration:underline}
+}
 .sheet h2{font-family:Newsreader,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:23px;margin:30px 0 8px;padding-top:14px;border-top:1px solid var(--rule);line-height:1.25}
 .sheet h3{font-size:16px;margin:20px 0 6px;font-weight:600}
 .sheet h4{font-size:15px;margin:16px 0 4px}
@@ -282,6 +314,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .tagchip-mini{background:var(--surf2);color:var(--mut);cursor:pointer}
 .tagchip-mini:hover{color:var(--no)}
 .chipn{background:var(--surf);border-radius:999px;padding:1px 6px;margin-left:6px;font-size:11.5px;color:var(--mut)}
+.chipx{margin-left:6px;opacity:.55;font-size:11px}
+.chipx:hover{opacity:1;color:var(--no)}
 .chip.topicchip,.chip.tagchip{padding:8px 12px;font-size:13px}
 
 /* ---------- toggle rows in the Display menu ---------- */
@@ -300,7 +334,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .empty-state .es-tip{font-size:13.5px;color:var(--mut);margin:0;max-width:44ch;margin-left:auto;margin-right:auto}
 
 /* ---------- progress ring ---------- */
-.ring-fill{transition:stroke-dashoffset .6s ease}
+.ring-fill{transition:stroke-dashoffset .6s ease;animation:ringFillIn .9s cubic-bezier(.22,.9,.3,1)}
+@keyframes ringFillIn{from{stroke-dashoffset:var(--ring-c)}}
 .goalring{position:relative;display:inline-flex;flex-shrink:0}
 .goalring-n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
 
@@ -321,6 +356,7 @@ button:active{transform:scale(.97)}
 </head>
 <body>
 
+<div id="topBanners"></div>
 <header>
   <div class="hrow">
     <div class="brand">TiffLex</div>
@@ -355,10 +391,10 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.1";
+const APP_VERSION = "v20.2";
 const APP_UPDATED = "September 23, 2026";
 
-let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false};
+let S = {h:{}, dom:[1,2,3,4], focus:"all", examDate:null, theme:"auto", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 if(!S.daily) S.daily={date:null,count:0};
 if(!S.dailyLog) S.dailyLog={};
@@ -372,11 +408,54 @@ function bumpDaily(n){
   S.dailyLog[t]=(S.dailyLog[t]||0)+n;
 }
 
-let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null, subdomainFilter=null, customMock=false, speaking=false;
+let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null, subdomainFilter=null, customMock=false, speaking=false, lastRenderMode=null, modeJustChanged=false;
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
 const esc=t=>String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+/* ---------- fixed top banners (update available / install prompt) ---------- */
+function addTopBanner(id, html){
+  const host = document.getElementById('topBanners');
+  if(!host || document.getElementById(id)) return null;
+  const el = document.createElement('div');
+  el.className = 'topbanner'; el.id = id; el.innerHTML = html;
+  host.appendChild(el);
+  return el;
+}
+function removeTopBanner(id){ const el=document.getElementById(id); if(el) el.remove(); }
+
+/* ---------- custom "add to home screen" prompt ---------- */
+let deferredInstallPrompt=null;
+function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+function isIOSDevice(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; }
+function maybeShowInstallBanner(){
+  if(S.installBannerDismissed || isStandalone()) return;
+  if(deferredInstallPrompt){
+    const el=addTopBanner('installBanner', `<span>Install TiffLex for full-screen, one-tap access.</span><button id="ibInstall">Install</button><button class="tb-x" id="ibDismiss" aria-label="Dismiss">✕</button>`);
+    if(!el) return;
+    $("#ibInstall").onclick=async()=>{
+      removeTopBanner('installBanner');
+      const p=deferredInstallPrompt; deferredInstallPrompt=null;
+      if(!p) return;
+      try{ p.prompt(); await p.userChoice; }catch(e){}
+    };
+    $("#ibDismiss").onclick=()=>{ S.installBannerDismissed=true; save(); removeTopBanner('installBanner'); };
+  } else if(isIOSDevice()){
+    const el=addTopBanner('installBanner', `<span>Add TiffLex to your Home Screen: tap Share, then “Add to Home Screen.”</span><button class="tb-x" id="ibDismiss" aria-label="Dismiss">✕</button>`);
+    if(!el) return;
+    $("#ibDismiss").onclick=()=>{ S.installBannerDismissed=true; save(); removeTopBanner('installBanner'); };
+  }
+}
+addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  setTimeout(maybeShowInstallBanner, 4000);
+});
+addEventListener('appinstalled', ()=>{
+  S.installBannerDismissed=true; save();
+  removeTopBanner('installBanner');
+});
 function reportHref(q){
   const subject=encodeURIComponent(`TiffLex Q${q.n} — issue`);
   const stemPreview=q.q.length>240?q.q.slice(0,240)+"…":q.q;
@@ -500,7 +579,7 @@ function ringSVG(pct, size, stroke, color, trackColor){
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="ring">
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${trackColor}" stroke-width="${stroke}"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
-      stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 ${size/2} ${size/2})" class="ring-fill"/>
+      stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" style="--ring-c:${c.toFixed(2)}" transform="rotate(-90 ${size/2} ${size/2})" class="ring-fill"/>
   </svg>`;
 }
 
@@ -542,17 +621,56 @@ function soundWrong(){ playTone(196,0.22,"sine",0.055); }
 function soundFlag(){ playTone(660,0.06,"square",0.03); }
 function soundGoal(){ playTone(660,0.12,"sine",0.05); setTimeout(()=>playTone(880,0.12,"sine",0.05),90); setTimeout(()=>playTone(1100,0.18,"sine",0.05),180); }
 
+/* ---------- haptics (mobile only; silently no-op elsewhere) ---------- */
+function buzz(pattern){
+  if(!S.haptics) return;
+  try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+}
+
+/* ---------- celebratory moments (confetti + toast) ---------- */
+function showToast(msg, ms){
+  const el=document.createElement("div");
+  el.className="toast"; el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.classList.add("toast-out"); setTimeout(()=>el.remove(), 250); }, ms||2600);
+}
+function confettiBurst(n){
+  n = n||70;
+  const colors=["#2E7D6B","#7A5FB5","#B5652B","#3E6FA8","#D8A93B"];
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<n;i++){
+    const el=document.createElement("div");
+    el.className="confetti-piece";
+    const dur=(1.5+Math.random()*1.3).toFixed(2), delay=(Math.random()*0.35).toFixed(2);
+    el.style.left = (Math.random()*100)+"vw";
+    el.style.background = colors[i%colors.length];
+    el.style.animationDuration = dur+"s";
+    el.style.animationDelay = delay+"s";
+    el.style.borderRadius = Math.random()<0.5 ? "50%" : "2px";
+    frag.appendChild(el);
+    setTimeout(()=>el.remove(), (+dur+ +delay)*1000+250);
+  }
+  document.body.appendChild(frag);
+}
+function celebrate(msg){
+  confettiBurst();
+  buzz([15,40,15,40,15]);
+  if(msg) showToast(msg);
+}
+
 /* ---------- study streak ---------- */
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/864e5); }
+const STREAK_MILESTONES = [3,7,14,30,50,100,150,200,365];
 function updateStreak(){
   if(!S.streak) S.streak={count:0,last:null};
   const today=todayStr();
-  if(S.streak.last===today) return;
+  if(S.streak.last===today) return null;
   const diff = S.streak.last ? daysBetween(S.streak.last, today) : null;
   S.streak.count = diff===1 ? (S.streak.count||0)+1 : 1;
   S.streak.last = today;
   save();
+  return STREAK_MILESTONES.includes(S.streak.count) ? S.streak.count : null;
 }
 function daysLabel(){
   const streak = (S.streak && S.streak.count>1) ? ` <span class="streak">🔥 ${S.streak.count}-day streak</span>` : "";
@@ -575,7 +693,7 @@ function renderDays(){
     S.examDate=t; save(); renderDays();
   };
 }
-updateStreak();
+const streakMilestone = updateStreak();
 renderDays();
 checkExpiredMock();
 
@@ -649,11 +767,20 @@ function filters(){
     (topicBrowserOpen ? `<div class="chips topicbrowse">`+topicsForDomains().map(([k,n])=>
       `<button class="chip topicchip" data-topic="${esc(k)}">${esc(k)} <span class="chipn">${n}</span></button>`).join("")+`</div>` : "") +
     (tags.length ? `<p class="lab" style="margin-top:${topicBrowserOpen?"14px":"2px"}">Your tags</p><div class="chips tagbrowse">`+
-      tags.map(([t,n])=>`<button class="chip tagchip" data-tag="${esc(t)}" aria-pressed="${tagFilter===t}">🏷️ ${esc(t)} <span class="chipn">${n}</span></button>`).join("")+`</div>` : "");
+      tags.map(([t,n])=>`<button class="chip tagchip" data-tag="${esc(t)}" aria-pressed="${tagFilter===t}">🏷️ ${esc(t)} <span class="chipn">${n}</span></button>`).join("")+`</div>` : "") +
+    presetsBlock();
+}
+function presetsBlock(){
+  const presets = S.presets||[];
+  return `<p class="lab" style="margin-top:14px">Saved filter presets</p>
+    <div class="chips presetchips">` +
+    presets.map((p,idx)=>`<button class="chip presetchip" data-idx="${idx}">${esc(p.name)} <span class="chipx" data-rmpreset="${idx}" title="Delete preset">✕</span></button>`).join("") +
+    `<button class="chip" id="savePreset">+ Save current mix</button></div>`;
 }
 function wireFilters(root){
   const filterRows = Array.from(root.querySelectorAll(".chips")).filter(row=>
-    !row.classList.contains("topicbrowse") && !row.classList.contains("tagbrowse") && !row.classList.contains("lengthchips"));
+    !row.classList.contains("topicbrowse") && !row.classList.contains("tagbrowse") &&
+    !row.classList.contains("lengthchips") && !row.classList.contains("presetchips"));
   filterRows.forEach((row)=>{
     row.querySelectorAll(".chip").forEach((c)=>{
       c.onclick=()=>{
@@ -674,12 +801,28 @@ function wireFilters(root){
     topicFilter=null; subdomainFilter=null; render();
   });
   const ctf=root.querySelector("#clearTagFilter"); if(ctf) ctf.onclick=()=>{ tagFilter=null; render(); };
+  root.querySelectorAll(".presetchip").forEach(c=>c.onclick=(e)=>{
+    if(e.target.dataset.rmpreset!==undefined){
+      const idx=+e.target.dataset.rmpreset;
+      S.presets.splice(idx,1); save(); render(); return;
+    }
+    const p=(S.presets||[])[+c.dataset.idx]; if(!p) return;
+    S.dom=p.dom.slice(); S.focus=p.focus;
+    topicFilter=p.topic||null; subdomainFilter=p.subdomain||null; tagFilter=p.tag||null; searchFilter=null;
+    save(); render();
+  });
+  const sp=root.querySelector("#savePreset"); if(sp) sp.onclick=()=>{
+    const name=prompt("Name this filter mix:"); if(!name) return;
+    S.presets=S.presets||[];
+    S.presets.push({name:name.slice(0,40), dom:S.dom.slice(), focus:S.focus, topic:topicFilter, subdomain:subdomainFilter, tag:tagFilter});
+    save(); render();
+  };
 }
 function goalBar(){
   const done=dailyCount(), goal=S.dailyGoal||20, pct=Math.min(100,Math.round(done/goal*100));
   return `<div class="row" style="align-items:center;gap:12px;margin-bottom:14px">
     <div class="goalring">${ringSVG(pct,40,5)}<span class="goalring-n">${pct>=100?"✓":pct+"%"}</span></div>
-    <div style="flex:1"><div class="meter" style="margin-top:0"><div class="bar"><i style="width:${pct}%"></i></div></div></div>
+    <div style="flex:1"><div class="meter" style="margin-top:0"><div class="bar bar-animate"><i style="width:${pct}%"></i></div></div></div>
     <button class="ghost" id="goalEdit" style="font-size:12.5px;padding:3px 10px;white-space:nowrap">${done} / ${goal} today</button>
   </div>`;
 }
@@ -712,6 +855,7 @@ function speakQuestion(q){
 /* ---------- render ---------- */
 function render(){
   stopSpeaking();
+  modeJustChanged = mode!==lastRenderMode; lastRenderMode=mode;
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.m===mode));
   const su=$("#setup"), st=$("#stage"), bt=$("#bottom");
   su.innerHTML=""; st.innerHTML=""; bt.classList.add("hidden");
@@ -731,7 +875,7 @@ function render(){
   const showDueBanner = dueN>0 && S.focus!=="due" && !topicFilter && !subdomainFilter && !searchFilter;
   const resumable = mode==="mock" && S.mockInProgress && S.mockInProgress.mockEnd>Date.now();
   const empty = (!n && !searchFilter && mode!=="mock") ? focusEmptyMsg() : null;
-  su.innerHTML = `<div class="panel">
+  su.innerHTML = `<div class="panel${modeJustChanged?" panel-enter":""}">
     ${goalBar()}
     ${resumable?`<div class="topicbanner"><span>In-progress mock: <b>${S.mockInProgress.mockLog.filter(x=>x!=null).length} of ${S.mockInProgress.ids.length}</b> answered, ${Math.max(0,Math.round((S.mockInProgress.mockEnd-Date.now())/60000))} min left</span><span style="display:flex;gap:6px"><button id="resumeMock">Resume</button><button id="discardMock">Discard</button></span></div>`:""}
     ${showTopicBanner?`<div class="topicbanner"><span>Filtered to <b>${esc(topicFilter)}</b> (${n} question${n===1?"":"s"})</span><button id="clearTopic">Clear</button></div>`:""}
@@ -942,13 +1086,14 @@ function card(){
 
   st.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
     const n=+b.dataset.n;
-    if(mode==="mock"){ answered=n; mockLog[pos]=n; persistMock(); card(); return; }
+    if(mode==="mock"){ answered=n; mockLog[pos]=n; persistMock(); buzz(10); card(); return; }
     if(answered!==null) return;
     snapshotFor(q.i);
     answered=n; sess.n++;
     const ok=q.ord[n]===q.c; if(ok) sess.r++; else sessWrongs.push([q,n]);
     const hh=hist(q.i); ok?hh.r++:hh.w++; updateBox(hh, ok); bumpDaily(1); save(); card();
     ok?soundCorrect():soundWrong();
+    buzz(ok?12:[10,45,10]);
   });
   const rv=$("#rv"); if(rv) rv.onclick=()=>{revealed=true;card();};
   st.querySelectorAll(".grades button").forEach(b=>b.onclick=()=>{
@@ -957,6 +1102,7 @@ function card(){
     sess.n++; if(g===1) sess.r++; else sessWrongs.push([q,null]);
     bumpDaily(1);
     (g===1)?soundCorrect():soundWrong();
+    buzz(g===1?12:[10,45,10]);
     if(g===3 && pos<queue.length-1) queue.splice(Math.min(pos+4,queue.length), 0, q);
     save(); clearUndo(); next();
   });
@@ -986,7 +1132,7 @@ function card(){
     answered=null; confPick=null; clearUndo(); save(); card();
   };
   const fb=$("#flagbtn"); if(fb) fb.onclick=()=>{
-    if(S.flags[q.i]) delete S.flags[q.i]; else { S.flags[q.i]=true; soundFlag(); }
+    if(S.flags[q.i]) delete S.flags[q.i]; else { S.flags[q.i]=true; soundFlag(); buzz(8); }
     save(); card();
   };
   const ttsb=$("#ttsbtn"); if(ttsb) ttsb.onclick=()=>speakQuestion(q);
@@ -1079,13 +1225,14 @@ function finish(){
     if(S.mockHistory.length>20) S.mockHistory=S.mockHistory.slice(-20);
     save();
   }
-  if(total && pct>=80) soundGoal();
+  if(total && pct>=80){ soundGoal(); if(mode==="mock") celebrate(`🎉 ${pct}% — nice work!`); }
   st.innerHTML = `<div class="panel">
     <p class="big">${pct}<span>%</span></p>
     <p class="lab" style="margin-top:8px">${right} of ${total} correct${mode==="mock"?" · NABP scales scores to 75 to pass; treat anything under 80% here as a topic to rework.":""}</p>
     ${mode==="mock"?`<div class="dom">`+[1,2,3,4].map(d=>
        `<span>${domDot(d)}Domain ${d} · ${DOMS[d]}</span><b>${byDom[d][0]}/${byDom[d][1]}</b>`).join("")+`</div>`:``}
-    <button class="go" id="again" style="margin-top:18px">${mode==="mock"?"Run another mock":"Start another set"}</button></div>
+    <button class="go" id="again" style="margin-top:18px">${mode==="mock"?"Run another mock":"Start another set"}</button>
+    ${mode==="mock"&&total?`<button class="ghost" id="shareScore" style="margin-top:10px;width:100%;padding:9px;font-size:13.5px">Share this score</button>`:``}</div>
     ${slowest.length?`<p class="lab" style="margin:22px 0 0">Where you spent the most time (right or wrong)</p><div class="rlist">`+
       slowest.map(({q,ms})=>`<div class="ritem ok" style="border-left-color:var(--mid)"><p class="rq">${esc(q.q)}</p>
         <p style="color:var(--mut);font-size:13.5px">${Math.round(ms/1000)}s</p></div>`).join("")+`</div>`:``}
@@ -1099,6 +1246,15 @@ function finish(){
         ${citeBlock(q.cite, false)}</div>`).join("")+`</div>`:``}`;
   queue=[]; pos=0; answered=null; revealed=false; sessWrongs=[];
   $("#again").onclick=()=>{ if(mode==="mock") start(); else render(); };
+  const ss=$("#shareScore"); if(ss) ss.onclick=async()=>{
+    const text = `I scored ${pct}% (${right}/${total}) on a TiffLex UMPJE mock exam.`;
+    if(navigator.share){
+      try{ await navigator.share({title:"TiffLex", text}); }catch(e){}
+    } else {
+      try{ await navigator.clipboard.writeText(text); const prev=ss.textContent; ss.textContent="Copied!"; setTimeout(()=>ss.textContent=prev,1600); }
+      catch(e){ alert(text); }
+    }
+  };
 }
 
 /* ---------- progress transfer ---------- */
@@ -1138,8 +1294,12 @@ function applyProg(inc, replace){
 
 /* ---------- sheet + stats ---------- */
 function sheet(){
-  $("#setup").innerHTML = `<input class="find" id="find" placeholder="Search the cram sheet — try “partial fill”, “biennial”, “BUD”">`;
-  $("#stage").innerHTML = `<div class="panel sheet" id="sh">${GUIDE}</div>`;
+  $("#setup").innerHTML = `<div class="row" style="gap:6px">
+    <input class="find" id="find" style="flex:1" placeholder="Search the cram sheet — try “partial fill”, “biennial”, “BUD”">
+    <button class="ghost" id="printSheet" style="flex:none;padding:0 14px" title="Print the cram sheet">🖨️ Print</button>
+  </div>`;
+  $("#stage").innerHTML = `<div class="panel sheet${modeJustChanged?" panel-enter":""}" id="sh">${GUIDE}</div>`;
+  $("#printSheet").onclick=()=>window.print();
   $("#find").oninput = e=>{
     const t=e.target.value.trim();
     const sh=$("#sh");
@@ -1184,6 +1344,27 @@ function exportList(kind){
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = `tifflex-${kind}-questions.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function exportAnki(){
+  const qs = BANK.filter(q=>S.h[q.i] && (S.h[q.i].w>0 || S.h[q.i].g===2 || S.h[q.i].g===3));
+  if(!qs.length){ alert("Nothing missed yet to export."); return; }
+  const field = s => String(s||"").replace(/\t/g," ").replace(/\r?\n+/g,"<br>");
+  const rows = qs.map(q=>{
+    let front = field(q.q);
+    if(q.o) front += "<br><br>" + q.o.map((o,i)=>`${"ABCD"[i]}. ${field(o)}`).join("<br>");
+    let back = q.o ? field(q.o[q.c]) : field(q.a||"");
+    if(q.e) back += "<br><br>" + field(q.e);
+    if(q.cite) back += `<br><br><i>${field(q.cite)}</i>`;
+    return `${front}\t${back}\tTiffLex::Domain-${q.d}`;
+  });
+  const content = "#separator:tab\n#html:true\n#tags column:3\n" + rows.join("\n");
+  const blob = new Blob([content], {type:"text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tifflex-missed-anki.txt";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
@@ -1300,7 +1481,7 @@ function glossary(){
       S.focus="all"; save(); mode="drill"; queue=[]; render();
     });
   };
-  $("#stage").innerHTML = `<div class="panel">
+  $("#stage").innerHTML = `<div class="panel${modeJustChanged?" panel-enter":""}">
     <div class="row" style="align-items:center;gap:10px;margin-bottom:2px">
       <button class="ghost" id="glossaryBack" style="flex:none;padding:6px 13px;font-size:13px">← Back</button>
       <p class="lab" style="margin:0">Citation glossary — ${totalTopics} topics across the question bank</p>
@@ -1323,6 +1504,10 @@ function stats(){
   });
   const missed=BANK.filter(q=>S.h[q.i]&&(S.h[q.i].w>0||S.h[q.i].g===2||S.h[q.i].g===3)).length;
   const flagged=Object.keys(S.flags||{}).length;
+  if(seen===BANK.length && !S.bankCompleteShown){
+    S.bankCompleteShown=true; save();
+    setTimeout(()=>celebrate("🏆 You've now seen every question in the bank!"), 300);
+  }
 
   const topicAgg={};
   BANK.forEach(q=>{
@@ -1351,14 +1536,14 @@ function stats(){
 
   const dueN = dueCount();
   const rd = readiness();
-  $("#stage").innerHTML=`<div class="panel">
+  $("#stage").innerHTML=`<div class="panel${modeJustChanged?" panel-enter":""}">
     ${seen?`<div class="row" style="align-items:center;gap:16px;margin-bottom:18px">
       <div class="goalring" style="width:64px;height:64px">${ringSVG(rd.score,64,7,rd.score>=85?"var(--acc)":rd.score>=65?"var(--mid)":"var(--no)")}<span class="goalring-n" style="font-size:16px">${rd.score}</span></div>
       <div><p class="lab" style="margin:0;font-size:14px;color:var(--ink)">${rd.label}</p>
         <p class="note" style="margin:2px 0 0">Exam-readiness score — blends accuracy, how much of the bank you've covered, and your study streak.</p></div>
     </div>`:emptyState("neutral","You haven't answered any questions yet.","Start a drill or flashcard session and your progress will show up here.")}
     <p class="big">${seen}<span> of ${BANK.length} seen</span></p>
-    <div class="meter"><div class="bar"><i style="width:${seen/BANK.length*100}%"></i></div></div>
+    <div class="meter"><div class="bar bar-animate"><i style="width:${seen/BANK.length*100}%"></i></div></div>
     <div class="dom"><span>Answered correctly</span><b>${r}</b><span>Answered wrong, shaky, or guessed</span><b>${w}</b>
       <span>In your missed pile</span><b>${missed}</b><span>Flagged questions</span><b>${flagged}</b></div>
     <p class="lab" style="margin-top:22px">Study activity</p>
@@ -1386,7 +1571,8 @@ function stats(){
     <div class="row" style="margin-top:8px;gap:8px">
       <button id="expmissed" style="flex:1" ${missed?"":"disabled"}>Export missed (${missed})</button>
       <button id="expflagged" style="flex:1" ${flagged?"":"disabled"}>Export flagged (${flagged})</button>
-    </div></div>
+    </div>
+    <button id="expanki" style="margin-top:8px" ${missed?"":"disabled"}>📇 Export missed to Anki</button></div>
 
   <div class="panel">
     <p class="lab" style="font-size:14px;color:var(--ink);margin-bottom:10px">Move progress to another device</p>
@@ -1420,6 +1606,7 @@ function stats(){
   const dd=$("#drilldue"); if(dd) dd.onclick=()=>{ S.focus="due"; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
   const em=$("#expmissed"); if(em) em.onclick=()=>exportList("missed");
   const ef=$("#expflagged"); if(ef) ef.onclick=()=>exportList("flagged");
+  const ea=$("#expanki"); if(ea) ea.onclick=exportAnki;
   const fr=$("#finalreview"); if(fr) fr.onclick=startFinalReview;
   const og=$("#openGlossary"); if(og) og.onclick=()=>{ mode="glossary"; render(); };
   $("#stage").querySelectorAll(".topicrow").forEach(b=>b.onclick=()=>{
@@ -1470,7 +1657,7 @@ function stats(){
         const obj=JSON.parse(reader.result);
         if(!obj || typeof obj!=="object" || !obj.h) throw new Error("not a TiffLex backup");
         if(!confirm("Replace everything on this device with this backup file?")){ rf.value=""; return; }
-        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false}, obj);
+        S=Object.assign({h:{},dom:[1,2,3,4],focus:"all",examDate:null,theme:"auto",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false,haptics:true,bankCompleteShown:false,presets:[],lastSeenVersion:APP_VERSION,installBannerDismissed:false}, obj);
         save();
         m3.textContent="Restored — reloading…"; m3.className="msg ok";
         setTimeout(()=>location.reload(), 700);
@@ -1530,6 +1717,7 @@ function renderThemeMenu(){
     ).join("") + `</div>` +
     `<div class="sect-div"></div><div class="sect-lab">Options</div>` +
     `<label class="opt-toggle"><input type="checkbox" id="optSound" ${S.sound?"checked":""}><span>Sound effects</span></label>` +
+    (navigator.vibrate?`<label class="opt-toggle"><input type="checkbox" id="optHaptics" ${S.haptics?"checked":""}><span>Haptic feedback</span></label>`:``) +
     `<label class="opt-toggle"><input type="checkbox" id="optDyslexia" ${S.dyslexiaFont?"checked":""}><span>Easy-read font</span></label>` +
     `<label class="opt-toggle"><input type="checkbox" id="optFocus" ${S.distractionFree?"checked":""}><span>Distraction-free mode</span></label>`;
   $("#themeMenu").querySelectorAll("button[data-v]").forEach(b=>b.onclick=(e)=>{
@@ -1542,6 +1730,8 @@ function renderThemeMenu(){
   });
   const os=$("#optSound"); if(os) os.onclick=(e)=>e.stopPropagation();
   if(os) os.onchange=()=>{ S.sound=os.checked; save(); if(S.sound) soundCorrect(); };
+  const oh=$("#optHaptics"); if(oh) oh.onclick=(e)=>e.stopPropagation();
+  if(oh) oh.onchange=()=>{ S.haptics=oh.checked; save(); if(S.haptics) buzz(15); };
   const od=$("#optDyslexia"); if(od) od.onclick=(e)=>e.stopPropagation();
   if(od) od.onchange=()=>{ S.dyslexiaFont=od.checked; save(); applyFont(); };
   const of_=$("#optFocus"); if(of_) of_.onclick=(e)=>e.stopPropagation();
@@ -1626,12 +1816,86 @@ function showOnboarding(){
   </div></div>`;
   $("#onboardGo").onclick=()=>{ S.onboarded=true; save(); el.innerHTML=""; };
 }
-if(!S.onboarded) showOnboarding();
+
+/* ---------- what's new ---------- */
+const CHANGELOG = {
+  "v20.1": [
+    "A sub-domain weak-spot breakdown, alongside the topic breakdown, on the Progress tab",
+    "A custom exam builder — build a mock exam from your own domain, topic, or missed/due filters",
+    "A browsable citation glossary, grouped by CFR part, U.S.C. section, or USP chapter",
+    "Read-aloud for any question, using your device's built-in text-to-speech",
+    "A 12-week study-streak calendar on the Progress tab"
+  ],
+  "v20.2": [
+    "Haptic feedback, plus a small celebration for big wins — passing a mock, finishing the whole bank, hitting a streak milestone",
+    "Save your own domain/topic/focus combinations as named filter presets",
+    "Export missed questions straight into an Anki-importable file",
+    "A cleaner print layout for the cram sheet",
+    "Share your mock exam score",
+    "A proper \"update available\" banner instead of silently swapping versions underneath you"
+  ]
+};
+function showWhatsNew(version){
+  const items = CHANGELOG[version];
+  if(!items || !items.length) return;
+  const el=$("#onboard");
+  el.innerHTML = `<div class="onboard-bg"><div class="onboard-card">
+    ${mascot("happy",44)}
+    <h2>What's new in ${esc(version)}</h2>
+    <p class="sub">A few things worth knowing about.</p>
+    <ul>${items.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>
+    <button class="go" id="onboardGo">Got it</button>
+  </div></div>`;
+  $("#onboardGo").onclick=()=>{ el.innerHTML=""; };
+}
+if(!S.onboarded){
+  showOnboarding();
+  S.lastSeenVersion = APP_VERSION; save();
+} else if(S.lastSeenVersion !== APP_VERSION){
+  showWhatsNew(APP_VERSION);
+  S.lastSeenVersion = APP_VERSION; save();
+}
+if(streakMilestone) setTimeout(()=>celebrate(`🔥 ${streakMilestone}-day streak!`), 900);
+setTimeout(maybeShowInstallBanner, 4000);
+
+/* Tiff + Lex. Thanks for putting up with all the late-night citation-checking. */
+console.log("%cTiffLex", "font-family:Georgia,serif;font-size:20px;color:#2E7D6B;font-weight:bold", "\nNamed for Tiffany — 'lex' for the law. Couldn't have built this without her patience.");
 </script>
 <script>
 if ('serviceWorker' in navigator) {
+  // Only reload on a controllerchange we ourselves asked for (by posting
+  // SKIP_WAITING after the person clicks "Refresh"). Without this guard,
+  // the very first install of the service worker on a brand-new visit
+  // also fires controllerchange (via clients.claim() below), which would
+  // otherwise trigger an unwanted reload on someone's first-ever visit.
+  let awaitingUpdateReload = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(!awaitingUpdateReload) return;
+    awaitingUpdateReload = false;
+    window.location.reload();
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js').then((reg) => {
+      const promptUpdate = () => {
+        const el = addTopBanner('updateBanner',
+          `<span>A new version of TiffLex is ready.</span><button id="ubRefresh">Refresh</button><button class="tb-x" id="ubDismiss" aria-label="Dismiss">✕</button>`);
+        if(!el) return;
+        document.getElementById('ubRefresh').onclick = () => {
+          if(!reg.waiting) return;
+          awaitingUpdateReload = true;
+          reg.waiting.postMessage('SKIP_WAITING');
+        };
+        document.getElementById('ubDismiss').onclick = () => removeTopBanner('updateBanner');
+      };
+      if(reg.waiting && navigator.serviceWorker.controller) promptUpdate();
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', () => {
+          if(nw.state === 'installed' && navigator.serviceWorker.controller) promptUpdate();
+        });
+      });
+    }).catch(() => {});
   });
 }
 </script>
