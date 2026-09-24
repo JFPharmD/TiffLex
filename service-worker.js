@@ -1,7 +1,7 @@
-// TiffLex — offline service worker
+// TiffLex: offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v20.2';
+const VERSION = 'v20.3';
 const CACHE_NAME = 'tifflex-' + VERSION;
 
 const PRECACHE_URLS = [
@@ -21,7 +21,7 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Deliberately does NOT call self.skipWaiting() here — the new worker
+  // Deliberately does NOT call self.skipWaiting() here; the new worker
   // sits in the "waiting" state until the page asks it to take over (see
   // the SKIP_WAITING message handler below). That's what lets index.html
   // show an "update available" banner instead of silently swapping the
