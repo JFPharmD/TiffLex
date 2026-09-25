@@ -1,8 +1,20 @@
 // TiffLex: offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v20.6';
+const VERSION = 'v20.18';
 const CACHE_NAME = 'tifflex-' + VERSION;
+
+// Alternate icon colors for the in-app icon picker (Settings > Theme menu). Precached
+// alongside the default set so switching, or a future "Add to Home Screen", works offline.
+const ICON_COLORS = ['blue', 'purple', 'rose', 'amber', 'slate'];
+const ICON_VARIANT_URLS = ICON_COLORS.flatMap((c) => [
+  `./icon-180-${c}.png`,
+  `./icon-192-${c}.png`,
+  `./icon-512-${c}.png`,
+  `./icon-512-maskable-${c}.png`,
+  `./mark-${c}.svg`,
+  `./mark-maskable-${c}.svg`
+]);
 
 const PRECACHE_URLS = [
   './',
@@ -17,7 +29,8 @@ const PRECACHE_URLS = [
   './mark.svg',
   './mark-maskable.svg',
   './og-image.png',
-  './screenshot-app.png'
+  './screenshot-app.png',
+  ...ICON_VARIANT_URLS
 ];
 
 self.addEventListener('install', (event) => {
