@@ -279,6 +279,18 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .ritem .ra{color:var(--acc);font-size:14px}
 .dom{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin-top:16px;font-size:14px;color:var(--mut)}
 .dom b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.dashtiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+@media(max-width:520px){.dashtiles{grid-template-columns:repeat(2,1fr)}}
+.dashtile{position:relative;border:1px solid var(--rule);border-radius:10px;background:var(--surf2);padding:12px 8px 8px;text-align:center}
+.dashtile-hit{display:block;width:100%;background:none;border:none;padding:0;cursor:pointer;font:inherit}
+.dashtile-hit:disabled{cursor:default}
+.dashtile-label{display:block;font-size:11px;color:var(--mut)}
+.dashtile-val{display:block;font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;margin-top:2px}
+.dashtile-sub{display:block;font-size:10.5px;color:var(--mut);margin-top:2px}
+.dashmove{position:absolute;top:1px;background:none;border:none;color:var(--mut);font-size:13px;padding:3px 6px;cursor:pointer;line-height:1}
+.dashmove:disabled{opacity:.2;cursor:default}
+.dashmove.left{left:1px}
+.dashmove.right{right:1px}
 @media(max-width:520px){.stem{font-size:calc(18px * var(--text-scale,1))}.big{font-size:42px}.grades{grid-template-columns:1fr}}
 .onboard-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
 .onboard-card{background:var(--surf);border-radius:16px;max-width:440px;width:100%;padding:26px 24px;max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.3)}
@@ -341,6 +353,8 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .opt-toggle{display:flex;align-items:center;gap:9px;padding:9px 10px;font-size:13.5px;cursor:pointer}
 .opt-toggle:hover{background:var(--surf2)}
 .opt-toggle input{width:16px;height:16px;accent-color:var(--acc);flex-shrink:0}
+.weightinput{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mut);background:var(--surf2);border:1px solid var(--rule);border-radius:8px;padding:6px 10px}
+.weightinput input{width:48px;border:1px solid var(--rule);border-radius:6px;padding:4px 6px;font-size:13px;background:var(--surf);color:var(--ink);text-align:right}
 
 /* ---------- mascot ---------- */
 .mascot{color:var(--mut);display:block;margin:0 auto 10px}
@@ -410,10 +424,10 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.18";
+const APP_VERSION = "v20.20";
 const APP_UPDATED = "September 25, 2026";
 
-let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0};
+let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0, masteryThreshold:2, keyboardShortcuts:true, dashboardOrder:null, mockWeights:null};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
 if(!S.daily) S.daily={date:null,count:0};
 if(!S.dailyLog) S.dailyLog={};
@@ -422,6 +436,9 @@ function normalizeFocus(){
   if(!S.focus.length) S.focus=["all"];
 }
 normalizeFocus();
+if(![1,2,3].includes(S.masteryThreshold)) S.masteryThreshold = 2;
+if(S.keyboardShortcuts==null) S.keyboardShortcuts = true;
+if(!Array.isArray(S.dashboardOrder)) S.dashboardOrder = null;
 (S.presets||[]).forEach(p=>{ if(p && !Array.isArray(p.focus)) p.focus = p.focus ? [p.focus] : ["all"]; });
 const persistLocal=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const save=()=>{ S.lastModified=Date.now(); persistLocal(); queueCloudPush(); };
@@ -434,7 +451,7 @@ function bumpDaily(n){
   S.dailyLog[t]=(S.dailyLog[t]||0)+n;
 }
 
-let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null, subdomainFilter=null, customMock=false, speaking=false, lastRenderMode=null, modeJustChanged=false;
+let mode="drill", queue=[], pos=0, answered=null, revealed=false, sess={r:0,n:0}, mockEnd=0, mockT=null, mockLog=[], confPick=null, topicFilter=null, searchFilter=null, mockTimes=[], mockPosStart=0, tagFilter=null, topicBrowserOpen=false, sessWrongs=[], lastCardQ=null, subdomainFilter=null, customMock=false, customWeighting=false, speaking=false, lastRenderMode=null, modeJustChanged=false;
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -502,7 +519,7 @@ function weightedShuffle(arr){
   return arr.map(q=>{
     const h=S.h[q.i];
     let w=1;
-    if(h){ if(h.w>0||h.g===2||h.g===3) w=2.5; else if(h.r>0) w=0.5; }
+    if(h){ if(isShaky(h)) w=2.5; else if(h.r>0) w=0.5; }
     return [q, Math.pow(Math.random(), 1/w)];
   }).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
 }
@@ -686,6 +703,12 @@ function addDays(dateStr, n){
 }
 function isDue(h){ return !!(h && h.due && h.due<=todayStr()); }
 function dueCount(){ return BANK.filter(q=>isDue(S.h[q.i])).length; }
+// "Shaky": ever gotten wrong or self-rated Hard/Again, AND not yet nailed twice in a row
+// since that last miss. h.reps (tracked by sm2Update) resets to 0 on any miss/hard rating
+// and counts up on each correct answer after, so this is what "In your missed pile" /
+// the Missed focus filter / weighted shuffling all mean by "still shaky" - it lets a
+// question graduate out once you've actually re-learned it, instead of flagging it forever.
+function isShaky(h){ return !!(h && (h.w>0||h.g===2||h.g===3) && (h.reps||0)<(S.masteryThreshold||2)); }
 
 /* ---------- undo (misclick protection) ---------- */
 let undoSnapshot=null;
@@ -862,7 +885,7 @@ function pool(needOpts){
     if(S.focus.length && !S.focus.includes("all")){
       const passes =
         (S.focus.includes("unseen") && !h) ||
-        (S.focus.includes("missed") && !!(h && (h.w>0||h.g===2||h.g===3))) ||
+        (S.focus.includes("missed") && isShaky(h)) ||
         (S.focus.includes("flagged") && !!S.flags[q.i]) ||
         (S.focus.includes("due") && isDue(h));
       if(!passes) return false;
@@ -1059,9 +1082,11 @@ function render(){
       mode==="drill" ? "Multiple choice with the answer and explanation after each question."
       : mode==="cards" ? "Read the question, answer it out loud, then check yourself. Missed cards come back."
       : mockCustom ? "Timed like a mock exam, but built from the domain/focus filters you pick below instead of the full blueprint mix."
+      : customWeighting ? `${mockLen} questions, ${mockMin} minutes, weighted using your custom domain mix instead of the default blueprint. No feedback until you finish.`
       : `${mockLen} questions, ${mockMin} minutes, weighted like the real blueprint (by domain, and by each domain's own mix of sub-topics). No feedback until you finish.`}</p>
     ${mode==="cards"?`<label class="opt-toggle" style="padding:0 0 14px;margin-left:-10px"><input type="checkbox" id="readThroughToggle" ${S.readThrough?"checked":""}><span>Read-through mode: show each answer right away, no self-grading</span></label>`:``}
     ${mode==="mock"?chipRow("Length",[[20,"Quick · 20"],[40,"Short · 40"],[60,"Half · 60"],[120,"Full · 120"]],v=>mockLen===+v,"lengthchips"):filters()}
+    ${(mode==="mock" && !customMock)?`<label class="opt-toggle" style="padding:0 0 10px;margin-left:-10px"><input type="checkbox" id="customWeightToggle" ${customWeighting?"checked":""}><span>Customize domain weighting instead of the default 30/30/20/20 blueprint mix</span></label>${customWeighting?weightPanelHtml():``}`:``}
     ${mode==="mock"?`<label class="opt-toggle" style="padding:0 0 14px;margin-left:-10px"><input type="checkbox" id="customMockToggle" ${customMock?"checked":""}><span>Build a custom mix: pick domains, topics, or missed/due questions instead of the full blueprint</span></label>`:``}
     ${mockCustom?filters():``}
     ${mode!=="mock"?`<p class="lab" style="margin-top:14px">Search all ${BANK.length} questions</p>
@@ -1082,6 +1107,23 @@ function render(){
     const rm=$("#resumeMock"); if(rm) rm.onclick=resumeMock;
     const dm=$("#discardMock"); if(dm) dm.onclick=()=>{ S.mockInProgress=null; save(); render(); };
     const cmt=$("#customMockToggle"); if(cmt) cmt.onchange=()=>{ customMock=cmt.checked; render(); };
+    const cwt=$("#customWeightToggle"); if(cwt) cwt.onchange=()=>{
+      customWeighting=cwt.checked;
+      if(customWeighting && !S.mockWeights) S.mockWeights=Object.assign({},WEIGHT);
+      save(); render();
+    };
+    su.querySelectorAll("[data-wd]").forEach(inp=>{
+      inp.oninput=()=>{
+        const d=+inp.dataset.wd; let v=parseInt(inp.value,10); if(isNaN(v)||v<0) v=0; if(v>100) v=100;
+        if(!S.mockWeights) S.mockWeights=Object.assign({},WEIGHT);
+        S.mockWeights[d]=v;
+        const sum=[1,2,3,4].reduce((a,dd)=>a+(+S.mockWeights[dd]||0),0);
+        const sumEl=$("#weightSum");
+        if(sumEl){ sumEl.textContent=weightSumNote(sum); sumEl.style.color=sum===100?"":"var(--no)"; }
+      };
+      inp.onchange=()=>save();
+    });
+    const rw=$("#resetWeights"); if(rw) rw.onclick=()=>{ S.mockWeights=Object.assign({},WEIGHT); save(); render(); };
     if(mockCustom && !pool(true).length) $("#go").disabled=true;
   } else {
     wireFilters(su);
@@ -1117,6 +1159,20 @@ function render(){
    can (especially for a short mock) skew toward whichever sub-topics happen to shuffle up
    front and away from thinner ones. Untagged questions form their own group like any other,
    so they're neither favored nor starved. */
+function weightSumNote(sum){
+  return sum===100 ? "Adds up to 100%." : `Adds up to ${sum}% - it'll be scaled to 100% automatically.`;
+}
+function weightPanelHtml(){
+  const w = S.mockWeights || Object.assign({}, WEIGHT);
+  const sum = [1,2,3,4].reduce((a,d)=>a+(+w[d]||0),0);
+  return `<div class="weightpanel" style="margin:0 0 14px">
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      ${[1,2,3,4].map(d=>`<label class="weightinput">${domDot(d)}D${d}<input type="number" min="0" max="100" data-wd="${d}" value="${+w[d]||0}">%</label>`).join("")}
+    </div>
+    <p class="note" id="weightSum" style="margin-top:6px${sum===100?"":";color:var(--no)"}">${weightSumNote(sum)}</p>
+    <button class="ghost" id="resetWeights" style="padding:4px 11px;font-size:12.5px;margin-top:2px">Reset to blueprint (30/30/20/20)</button>
+  </div>`;
+}
 function subdomainWeightedPick(pool, target){
   if(target<=0 || !pool.length) return [];
   const groups={};
@@ -1152,10 +1208,14 @@ function start(){
       queue = shuffle(pool(true)).slice(0, mockLen);
     } else {
       const clean = BANK.filter(q=>q.o && q.v<=1);
+      const rawWeights = (customWeighting && S.mockWeights) ? S.mockWeights : WEIGHT;
+      const rawSum = [1,2,3,4].reduce((a,d)=>a+(+rawWeights[d]||0),0);
+      const weights = rawSum>0 ? rawWeights : WEIGHT; // a fully-zeroed custom mix falls back to the blueprint rather than producing an empty mock
+      const wsum = rawSum>0 ? rawSum : 100;
       queue=[];
       for(const d of [1,2,3,4]){
         const domPool = clean.filter(q=>q.d===+d);
-        const domTarget = Math.round(mockLen*WEIGHT[d]/100);
+        const domTarget = Math.round(mockLen*(+weights[d]||0)/wsum);
         queue=queue.concat(subdomainWeightedPick(domPool, domTarget));
       }
       queue=shuffle(queue).slice(0,mockLen);
@@ -1653,7 +1713,7 @@ function sheet(){
 function exportList(kind){
   const qs = kind==="flagged"
     ? BANK.filter(q=>S.flags[q.i])
-    : BANK.filter(q=>S.h[q.i] && (S.h[q.i].w>0 || S.h[q.i].g===2 || S.h[q.i].g===3));
+    : BANK.filter(q=>isShaky(S.h[q.i]));
   if(!qs.length){ alert("Nothing to export yet."); return; }
   const title = kind==="flagged" ? "Flagged questions" : "Missed questions";
   const rows = qs.map(q=>`
@@ -1679,7 +1739,7 @@ function exportList(kind){
 }
 
 function exportAnki(){
-  const qs = BANK.filter(q=>S.h[q.i] && (S.h[q.i].w>0 || S.h[q.i].g===2 || S.h[q.i].g===3));
+  const qs = BANK.filter(q=>isShaky(S.h[q.i]));
   if(!qs.length){ alert("Nothing missed yet to export."); return; }
   const field = s => String(s||"").replace(/\t/g," ").replace(/\r?\n+/g,"<br>");
   const rows = qs.map(q=>{
@@ -1746,7 +1806,7 @@ function sparkline(history){
 
 function startFinalReview(){
   const flaggedQ = BANK.filter(q=>S.flags[q.i]);
-  const missedQ = BANK.filter(q=>S.h[q.i] && (S.h[q.i].w>0||S.h[q.i].g===2||S.h[q.i].g===3));
+  const missedQ = BANK.filter(q=>isShaky(S.h[q.i]));
   const topicAgg={};
   BANK.forEach(q=>{ const hh=S.h[q.i]; if(!hh) return; const k=topicKey(q.cite); if(!topicAgg[k]) topicAgg[k]={r:0,t:0}; topicAgg[k].r+=hh.r; topicAgg[k].t+=hh.r+hh.w; });
   const weakKeys = new Set(Object.entries(topicAgg).filter(([k,v])=>v.t>=3 && v.r/v.t<0.7).map(([k])=>k));
@@ -1824,6 +1884,62 @@ function glossary(){
   $("#glosSearch").oninput=e=>{ $("#glosList").innerHTML=listHTML(e.target.value); wireList(); };
 }
 
+const DASH_TILE_KEYS = ["missed","streak","weakest","due"];
+function dashboardOrder(){
+  const o = S.dashboardOrder;
+  if(Array.isArray(o) && o.length===4 && DASH_TILE_KEYS.every(k=>o.includes(k))) return o;
+  return DASH_TILE_KEYS.slice();
+}
+function weakestDomainEntry(){
+  const entries=[1,2,3,4].map(d=>{
+    const q=BANK.filter(x=>x.d===d && S.h[x.i]);
+    const rr=q.reduce((a,x)=>a+S.h[x.i].r,0), ww=q.reduce((a,x)=>a+S.h[x.i].w,0);
+    return [d, rr, rr+ww];
+  }).filter(([d,rr,tt])=>tt>=8);
+  if(!entries.length) return null;
+  entries.sort((a,b)=>(a[1]/a[2])-(b[1]/b[2]));
+  return entries[0];
+}
+function dashboardTilesHtml({missed, dueN}){
+  const order = dashboardOrder();
+  const we = weakestDomainEntry();
+  const weakVal = we ? `D${we[0]}` : "N/A";
+  const weakSub = we ? `${Math.round(we[1]/we[2]*100)}% correct` : "Not enough data yet";
+  const streakN = (S.streak && S.streak.count) || 0;
+  const defs = {
+    missed:  {label:"Missed pile", val:String(missed), sub: missed?"tap to retest":"none right now", disabled: !missed},
+    streak:  {label:"Study streak", val: streakN>0?`${streakN}d`:"N/A", sub: streakN>0?"days in a row":"answer today to start", disabled:true},
+    weakest: {label:"Weakest domain", val: weakVal, sub: weakSub, disabled: !we},
+    due:     {label:"Due for review", val:String(dueN), sub: dueN?"tap to review":"none right now", disabled: !dueN}
+  };
+  return `<div class="dashtiles">` + order.map((key,idx)=>{
+    const d=defs[key];
+    return `<div class="dashtile">
+      <button class="dashmove left" data-dir="-1" data-key="${key}" ${idx===0?"disabled":""} aria-label="Move ${esc(d.label)} earlier">‹</button>
+      <button class="dashmove right" data-dir="1" data-key="${key}" ${idx===order.length-1?"disabled":""} aria-label="Move ${esc(d.label)} later">›</button>
+      <button class="dashtile-hit" data-tile="${key}" ${d.disabled?"disabled":""}>
+        <span class="dashtile-label">${esc(d.label)}</span>
+        <span class="dashtile-val">${esc(d.val)}</span>
+        <span class="dashtile-sub">${esc(d.sub)}</span>
+      </button>
+    </div>`;
+  }).join("") + `</div>`;
+}
+function moveDashTile(key, dir){
+  const order = dashboardOrder();
+  const i = order.indexOf(key), j = i+dir;
+  if(i<0 || j<0 || j>=order.length) return;
+  [order[i],order[j]] = [order[j],order[i]];
+  S.dashboardOrder = order; save(); render();
+}
+function dashTileAction(key){
+  if(key==="missed"){ S.focus=["missed"]; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); }
+  else if(key==="due"){ S.focus=["due"]; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); }
+  else if(key==="weakest"){
+    const we = weakestDomainEntry(); if(!we) return;
+    S.dom=[we[0]]; S.focus=["all"]; searchFilter=null; save(); mode="drill"; queue=[]; render();
+  }
+}
 function stats(){
   const ids=Object.keys(S.h);
   const seen=ids.length, r=ids.reduce((a,i)=>a+S.h[i].r,0), w=ids.reduce((a,i)=>a+S.h[i].w,0);
@@ -1832,7 +1948,7 @@ function stats(){
     const rr=q.reduce((a,x)=>a+S.h[x.i].r,0), ww=q.reduce((a,x)=>a+S.h[x.i].w,0);
     return [d, rr, rr+ww];
   });
-  const missed=BANK.filter(q=>S.h[q.i]&&(S.h[q.i].w>0||S.h[q.i].g===2||S.h[q.i].g===3)).length;
+  const missed=BANK.filter(q=>isShaky(S.h[q.i])).length;
   const flagged=Object.keys(S.flags||{}).length;
   if(seen===BANK.length && !S.bankCompleteShown){
     S.bankCompleteShown=true; save();
@@ -1866,6 +1982,7 @@ function stats(){
 
   const dueN = dueCount();
   const rd = readiness();
+  const dashHtml = dashboardTilesHtml({missed, dueN});
   $("#stage").innerHTML=`<div class="panel${modeJustChanged?" panel-enter":""}">
     ${seen?`<div class="row" style="align-items:center;gap:16px;margin-bottom:18px">
       <div class="goalring" style="width:64px;height:64px">${ringSVG(rd.score,64,7,rd.score>=85?"var(--acc)":rd.score>=65?"var(--mid)":"var(--no)")}<span class="goalring-n" style="font-size:16px">${rd.score}</span></div>
@@ -1876,6 +1993,8 @@ function stats(){
     <div class="meter"><div class="bar bar-animate"><i style="width:${seen/BANK.length*100}%"></i></div></div>
     <div class="dom"><span>Answered correctly</span><b>${r}</b><span>Answered wrong, shaky, or guessed</span><b>${w}</b>
       <span>In your missed pile</span><b>${missed}</b><span>Flagged questions</span><b>${flagged}</b></div>
+    <p class="lab" style="margin-top:18px">Your dashboard <span style="font-weight:400;color:var(--mut)">(use ‹ › to reorder)</span></p>
+    ${dashHtml}
     <p class="lab" style="margin-top:22px">Study activity</p>
     ${streakCalendar()}
     <p class="lab" style="margin-top:22px">Accuracy by domain</p>
@@ -1936,6 +2055,8 @@ function stats(){
     <p class="note">Found a wrong answer, a confusing question, or something that broke? <a href="mailto:TiffLexUMPJE@gmail.com?subject=TiffLex%20feedback">Email TiffLexUMPJE@gmail.com</a>, it helps a lot.</p>
     <p class="note" style="margin-top:8px;color:var(--mut)">Last updated ${APP_UPDATED} · TiffLex ${APP_VERSION}</p>
   </div>`;
+  $("#stage").querySelectorAll(".dashmove").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); moveDashTile(b.dataset.key, +b.dataset.dir); });
+  $("#stage").querySelectorAll(".dashtile-hit").forEach(b=>b.onclick=()=>dashTileAction(b.dataset.tile));
   $("#drillmiss").onclick=()=>{ S.focus=["missed"]; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
   const df=$("#drillflagged"); if(df) df.onclick=()=>{ S.focus=["flagged"]; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
   const dd=$("#drilldue"); if(dd) dd.onclick=()=>{ S.focus=["due"]; searchFilter=null; subdomainFilter=null; save(); mode="drill"; queue=[]; render(); };
@@ -2026,9 +2147,12 @@ function stats(){
         const obj=JSON.parse(reader.result);
         if(!obj || typeof obj!=="object" || !obj.h) throw new Error("not a TiffLex backup");
         if(!confirm("Replace everything on this device with this backup file?")){ rf.value=""; return; }
-        S=Object.assign({h:{},dom:[1,2,3,4],focus:["all"],examDate:null,theme:"auto",accent:"default",appIcon:"default",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false,haptics:true,bankCompleteShown:false,presets:[],lastSeenVersion:APP_VERSION,installBannerDismissed:false,syncId:null,syncEnabled:false,lastSyncedAt:null,lastModified:0}, obj);
+        S=Object.assign({h:{},dom:[1,2,3,4],focus:["all"],examDate:null,theme:"auto",accent:"default",appIcon:"default",textSize:"md",flags:{},mockLen:120,streak:{count:0,last:null},mockHistory:[],notes:{},dailyGoal:20,daily:{date:null,count:0},dailyLog:{},onboarded:true,tags:{},sound:false,dyslexiaFont:false,distractionFree:false,mockInProgress:null,readThrough:false,ttsOn:false,haptics:true,bankCompleteShown:false,presets:[],lastSeenVersion:APP_VERSION,installBannerDismissed:false,syncId:null,syncEnabled:false,lastSyncedAt:null,lastModified:0,masteryThreshold:2,keyboardShortcuts:true,dashboardOrder:null,mockWeights:null}, obj);
         normalizeFocus();
         (S.presets||[]).forEach(p=>{ if(p && !Array.isArray(p.focus)) p.focus = p.focus ? [p.focus] : ["all"]; });
+        if(![1,2,3].includes(S.masteryThreshold)) S.masteryThreshold = 2;
+        if(S.keyboardShortcuts==null) S.keyboardShortcuts = true;
+        if(!Array.isArray(S.dashboardOrder)) S.dashboardOrder = null;
         save();
         m3.textContent="Restored, reloading…"; m3.className="msg ok";
         setTimeout(()=>location.reload(), 700);
@@ -2043,7 +2167,7 @@ function stats(){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   if(mockT && !confirm("End the mock exam in progress?")) return;
   if(mockT){clearInterval(mockT);mockT=null;}
-  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; topicFilter=null; searchFilter=null; subdomainFilter=null; customMock=false; render();
+  mode=t.dataset.m; queue=[]; pos=0; answered=null; revealed=false; sess={r:0,n:0}; topicFilter=null; searchFilter=null; subdomainFilter=null; customMock=false; customWeighting=false; render();
 });
 const THEMES = [
   ["auto","Auto (system)"], ["light","Light"], ["sepia","Sepia"], ["dim","Dim"], ["dark","Dark"], ["oled","OLED black"]
@@ -2181,11 +2305,18 @@ function renderThemeMenu(){
     `<div class="tsize-row">` + TEXTSIZES.map(([v,label],i)=>
       `<button data-ts="${v}" aria-pressed="${tsize===v}" style="font-size:${13+i*3}px">${label}</button>`
     ).join("") + `</div>` +
+    `<div class="sect-div"></div><div class="sect-lab">Mastery threshold</div>` +
+    `<p class="note" style="padding:0 10px 6px;margin:0">How many times in a row you need to get a question right before it drops out of your missed pile.</p>` +
+    `<div class="tsize-row">` + [1,2,3].map(n=>
+      `<button data-mt="${n}" aria-pressed="${(S.masteryThreshold||2)===n}">${n}×</button>`
+    ).join("") + `</div>` +
     `<div class="sect-div"></div><div class="sect-lab">Options</div>` +
     `<label class="opt-toggle"><input type="checkbox" id="optSound" ${S.sound?"checked":""}><span>Sound effects</span></label>` +
     (navigator.vibrate?`<label class="opt-toggle"><input type="checkbox" id="optHaptics" ${S.haptics?"checked":""}><span>Haptic feedback</span></label>`:``) +
     `<label class="opt-toggle"><input type="checkbox" id="optDyslexia" ${S.dyslexiaFont?"checked":""}><span>Easy-read font</span></label>` +
-    `<label class="opt-toggle"><input type="checkbox" id="optFocus" ${S.distractionFree?"checked":""}><span>Distraction-free mode</span></label>`;
+    `<label class="opt-toggle"><input type="checkbox" id="optFocus" ${S.distractionFree?"checked":""}><span>Distraction-free mode</span></label>` +
+    `<label class="opt-toggle"><input type="checkbox" id="optKeys" ${S.keyboardShortcuts?"checked":""}><span>Keyboard shortcuts while drilling</span></label>` +
+    `<p class="note" style="padding:2px 10px 0;margin:0"><button class="ghost" id="viewShortcuts" style="padding:3px 10px;font-size:12px">View shortcuts</button></p>`;
   $("#themeMenu").querySelectorAll("button[data-v]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
     S.theme=b.dataset.v; save(); applyTheme(); applyAccent(); closeThemeMenu();
@@ -2210,6 +2341,13 @@ function renderThemeMenu(){
   if(od) od.onchange=()=>{ S.dyslexiaFont=od.checked; save(); applyFont(); };
   const of_=$("#optFocus"); if(of_) of_.onclick=(e)=>e.stopPropagation();
   if(of_) of_.onchange=()=>{ S.distractionFree=of_.checked; save(); applyDistraction(); closeThemeMenu(); };
+  const ok_=$("#optKeys"); if(ok_) ok_.onclick=(e)=>e.stopPropagation();
+  if(ok_) ok_.onchange=()=>{ S.keyboardShortcuts=ok_.checked; save(); };
+  const vs=$("#viewShortcuts"); if(vs) vs.onclick=(e)=>{ e.stopPropagation(); closeThemeMenu(); showShortcutsHelp(); };
+  $("#themeMenu").querySelectorAll("button[data-mt]").forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    S.masteryThreshold=+b.dataset.mt; save(); renderThemeMenu();
+  });
 }
 applyTheme();
 applyAccent();
@@ -2237,6 +2375,7 @@ document.addEventListener("click",e=>{
 addEventListener("keydown",e=>{ if(e.key==="Escape") closeThemeMenu(); });
 $("#wipe").onclick=()=>{ if(confirm("Clear every answer you've recorded?")){ S.h={}; save(); queue=[]; render(); } };
 addEventListener("keydown",e=>{
+  if(!S.keyboardShortcuts) return;
   if(!queue.length||/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   const k=e.key.toUpperCase();
   if("ABCD".includes(k)){ const b=document.querySelector(`.opt[data-n="${"ABCD".indexOf(k)}"]`); if(b&&!b.disabled)b.click(); }
@@ -2257,6 +2396,7 @@ addEventListener("keydown",e=>{
   if(k==="U"){ const un=$("#undoAnswer"); if(un) un.click(); }
 });
 addEventListener("keydown", e=>{
+  if(!S.keyboardShortcuts) return;
   if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if(e.key==="?"){ e.preventDefault(); showShortcutsHelp(); }
 });
@@ -2363,6 +2503,15 @@ const CHANGELOG = {
   "v20.18": [
     "Browsing by topic now shows the commonly known name of the law alongside the citation, like \"21 CFR 1306 (DEA: Prescription Requirements)\", in the topic browser, the filtered-topic banner, and the weakest-topics lists",
     "The Focus filter can now combine options - tap both \"Previously missed\" and \"Not yet seen\" to drill everything you've either gotten wrong or haven't seen yet in one pass, instead of switching back and forth"
+  ],
+  "v20.19": [
+    "Your missed pile now clears a question once you've answered it correctly twice in a row, instead of keeping it flagged as missed forever after a single slip - so \"Retest missed,\" the missed export, and the combined missed + not-yet-seen focus stay full of questions you're actually still shaky on, not ones you've already re-learned"
+  ],
+  "v20.20": [
+    "You can now set how many times in a row you need to get a question right before it clears your missed pile (1, 2, or 3) in the theme menu, instead of the fixed 2",
+    "Keyboard shortcuts while drilling (A-D, Space, Enter, arrows, and more - press ? anytime to see the full list) can now be turned off in the theme menu if you'd rather they stay out of the way, and there's a \"View shortcuts\" link so they're easier to find",
+    "Mock exams have a new \"Customize domain weighting\" option to override the default 30/30/20/20 blueprint mix for a one-off mock focused on a weak domain",
+    "The Progress screen has a new small dashboard (missed pile, study streak, weakest domain, due for review) that you can reorder with the ‹ › buttons to put what matters most to you first"
   ]
 };
 function showWhatsNew(version){
