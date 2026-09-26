@@ -439,7 +439,7 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.22";
+const APP_VERSION = "v20.23";
 const APP_UPDATED = "September 26, 2026";
 
 let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0, masteryThreshold:2, keyboardShortcuts:true, dashboardOrder:null, mockWeights:null};
@@ -1331,7 +1331,7 @@ function checkExpiredMock(){
   q2.forEach((q,i)=>{
     const pick=mp.mockLog[i]; const ok = pick!=null && q.ord[pick]===q.c;
     if(ok) right++;
-    const hh=hist(q.i); ok?hh.r++:hh.w++;
+    const hh=hist(q.i); ok?hh.r++:hh.w++; sm2Update(hh, ok?4:1);
   });
   const total=q2.length;
   if(total){
@@ -1617,7 +1617,17 @@ function finish(){
     queue.forEach((q,i)=>{
       const pick=mockLog[i]; const ok = pick!=null && q.ord[pick]===q.c;
       byDom[q.d][1]++; if(ok){right++;byDom[q.d][0]++} else wrongs.push([q,pick]);
-      const hh=hist(q.i); ok?hh.r++:hh.w++;
+      // Mirror drill mode's plain click-to-answer handler exactly: a mock-exam
+      // answer is just as real a demonstration of knowing (or not knowing) a
+      // question as a drill answer, so it must advance reps/ivl/due/ef the same
+      // way. Before this, only hh.r/hh.w were touched here, which meant a
+      // question missed once could never clear the "missed" pile, the "not yet
+      // seen + missed" custom-mock filter, or spaced-repetition "due" status via
+      // mock-exam correctness alone - isShaky() gates on h.reps, and reps only
+      // ever moved inside sm2Update(), which this loop never called. A person
+      // could answer the same previously-missed question correctly on every
+      // mock they took and it would keep resurfacing under those filters forever.
+      const hh=hist(q.i); ok?hh.r++:hh.w++; sm2Update(hh, ok?4:1);
     });
     bumpDaily(queue.length);
     S.mockInProgress=null;
@@ -2671,6 +2681,9 @@ const CHANGELOG = {
     "Added a Review screen for mock exams: tap the question counter (or try to finish with anything unanswered) to see every question at a glance - answered, flagged, or blank - and jump straight to any of them before you submit",
     "Mock exam results now show your pacing by domain (target: ~90 sec/question) alongside your score, so you can see which domain is eating your seat time",
     "Progress now projects whether you're on pace to see the whole bank before your exam date, based on your actual recent daily pace - and suggests a daily target if you're behind"
+  ],
+  "v20.23": [
+    "Fixed a bug where answering a question correctly on a mock exam never actually cleared it from your missed pile - only a correct answer in Drill or Flashcards counted before. If you'd gotten a question wrong once and then answered it right on a later mock, it would keep resurfacing under \"missed,\" \"due for review,\" and a custom mock's \"not yet seen + missed\" filter forever, even though you clearly knew it. Mock-exam answers now count exactly like drill answers toward clearing a question and scheduling its next review"
   ]
 };
 function showWhatsNew(version){
