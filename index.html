@@ -69,10 +69,10 @@
 html[data-textsize="sm"]{--text-scale:0.87}
 html[data-textsize="lg"]{--text-scale:1.22}
 *,*::before,*::after{box-sizing:inherit}
-html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;overscroll-behavior-y:contain}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:Archivo,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.5;
-  -webkit-font-smoothing:antialiased}
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;min-height:100vh}
 button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -293,6 +293,19 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .dashmove:disabled{opacity:.2;cursor:default}
 .dashmove.left{left:1px}
 .dashmove.right{right:1px}
+
+/* ---------- mock exam review grid (jump to any question before submitting) ---------- */
+.reviewgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:8px;margin-top:6px}
+.rgcell{position:relative;height:42px;border-radius:9px;border:1px solid var(--rule);background:var(--surf2);
+  color:var(--mut);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.rgcell.rg-done{background:var(--acc-s);color:var(--acc);border-color:var(--acc)}
+.rgcell.rg-cur{outline:2px solid var(--acc);outline-offset:2px}
+.rgcell.rg-flag::after{content:"★";position:absolute;top:-7px;right:-5px;font-size:11px;color:var(--mid);
+  background:var(--bg);border-radius:50%;line-height:1}
+.reviewlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-top:12px}
+.reviewlegend span{display:inline-flex;align-items:center;gap:5px}
+.reviewlegend i{width:11px;height:11px;border-radius:3px;border:1px solid var(--rule);background:var(--surf2);display:inline-block}
+.reviewlegend i.rl-done{background:var(--acc-s);border-color:var(--acc)}
 @media(max-width:520px){.stem{font-size:calc(18px * var(--text-scale,1))}.big{font-size:42px}.grades{grid-template-columns:1fr}}
 .onboard-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
 .onboard-card{background:var(--surf);border-radius:16px;max-width:440px;width:100%;padding:26px 24px;max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.3)}
@@ -426,7 +439,7 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.21";
+const APP_VERSION = "v20.22";
 const APP_UPDATED = "September 26, 2026";
 
 let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0, masteryThreshold:2, keyboardShortcuts:true, dashboardOrder:null, mockWeights:null};
@@ -774,6 +787,46 @@ function readiness(){
   return {score, label, acc, coverage, seen};
 }
 
+/* Forward-looking, unlike readiness() above: given an exam date and how many
+   questions/day you've actually been averaging (not how many you meant to),
+   will you get through the rest of the bank in time - and if not, what daily
+   pace would it take? Only meaningful once an exam date is set. */
+function pacingToExamDate(){
+  if(!S.examDate) return null;
+  const daysLeft = daysBetween(todayStr(), S.examDate);
+  if(daysLeft==null || isNaN(daysLeft)) return null;
+  const seen = Object.keys(S.h).length;
+  const unseen = Math.max(0, BANK.length-seen);
+  if(unseen<=0) return {status:"done", unseen, daysLeft};
+  if(daysLeft<=0) return {status:"examsoon", unseen, daysLeft};
+  const WINDOW=14;
+  let sum=0;
+  for(let i=0;i<WINDOW;i++){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    sum += (S.dailyLog && S.dailyLog[key]) || 0;
+  }
+  const avgPerDay = sum/WINDOW;
+  const neededPerDay = Math.ceil(unseen/daysLeft);
+  if(avgPerDay<=0) return {status:"stalled", unseen, daysLeft, neededPerDay};
+  const projectedDays = Math.ceil(unseen/avgPerDay);
+  if(projectedDays<=daysLeft) return {status:"onpace", unseen, daysLeft, projectedDays, avgPerDay, bufferDays:daysLeft-projectedDays};
+  return {status:"behind", unseen, daysLeft, projectedDays, avgPerDay, neededPerDay};
+}
+function pacingHtml(){
+  const p = pacingToExamDate();
+  if(!p) return "";
+  const round1 = n=>Math.round(n*10)/10;
+  let text, tone;
+  if(p.status==="done"){ text=`You've now seen every question in the bank with ${p.daysLeft} day${p.daysLeft===1?"":"s"} to go — time to focus on your missed pile and weak topics.`; tone="ok"; }
+  else if(p.status==="examsoon"){ text=`Your exam date has arrived (or passed) with ${p.unseen} question${p.unseen===1?"":"s"} still unseen. Good luck — prioritize the missed pile and cram sheet over new questions now.`; tone="mid"; }
+  else if(p.status==="stalled"){ text=`No activity logged in the last 14 days. At ${p.neededPerDay}/day you'd see the remaining ${p.unseen} question${p.unseen===1?"":"s"} by your exam date — worth getting back into a daily habit.`; tone="no"; }
+  else if(p.status==="onpace"){ text=`At your recent pace (~${round1(p.avgPerDay)}/day), you're on track to see the remaining ${p.unseen} question${p.unseen===1?"":"s"} about ${p.bufferDays} day${p.bufferDays===1?"":"s"} before your exam.`; tone="ok"; }
+  else { text=`At your recent pace (~${round1(p.avgPerDay)}/day), you'd finish the remaining ${p.unseen} question${p.unseen===1?"":"s"} around ${p.projectedDays-p.daysLeft} day${p.projectedDays-p.daysLeft===1?"":"s"} after your exam. Bump to ~${p.neededPerDay}/day to finish in time.`; tone="no"; }
+  const color = tone==="ok"?"var(--acc)":tone==="mid"?"var(--mid)":"var(--no)";
+  return `<p class="note" style="margin-top:10px;padding:10px 12px;border-radius:9px;background:var(--surf2);border-left:3px solid ${color};color:var(--ink)">\u{1F4C6} ${text}</p>`;
+}
+
 /* ---------- sound effects (WebAudio-generated, no files, off by default) ---------- */
 let audioCtx=null;
 function ensureAudio(){
@@ -872,7 +925,7 @@ function renderDays(){
 }
 const streakMilestone = updateStreak();
 renderDays();
-checkExpiredMock();
+const bootResumedMock = checkExpiredMock();
 
 function pool(needOpts){
   return BANK.filter(q=>{
@@ -1258,8 +1311,20 @@ function resumeMock(){
 }
 function checkExpiredMock(){
   const mp=S.mockInProgress;
-  if(mp && mp.mockEnd>Date.now()){ mode="mock"; return; }
-  if(!mp) return;
+  if(mp && mp.mockEnd>Date.now()){
+    // Boot-time only: silently drop straight back into the exact question the
+    // person was on, rather than landing on the setup screen with a small
+    // "Resume" banner they could miss (and could easily undo entirely by
+    // reflexively tapping "Start the mock" instead of noticing "Resume").
+    // A reload here can come from switching apps, the OS reclaiming memory
+    // in the background, or the browser's own pull-to-refresh gesture - none
+    // of that should ever look like the exam reset.
+    resumeMock();
+    const answeredN = mp.mockLog.filter(x=>x!=null).length;
+    showToast(`Resumed your mock exam — Q${mp.pos+1} of ${mp.ids.length}, ${answeredN} answered`);
+    return true;
+  }
+  if(!mp) return false;
   // Time ran out while the app was closed; score what was answered and file it, rather than losing the attempt.
   const q2 = mp.ids.map((id,idx)=>{ const q=BANK[id]; q.ord=mp.ords[idx]; return q; });
   let right=0;
@@ -1276,6 +1341,7 @@ function checkExpiredMock(){
   }
   S.mockInProgress=null;
   save();
+  return false;
 }
 function tick(){
   const el=$("#tm"); if(!el) return;
@@ -1346,8 +1412,10 @@ function card(){
     (mode==="mock" ? `<span class="timer" id="tm">--:--</span>` :
       rt ? `<span class="score" style="color:var(--mut)">Reading</span>` :
       `<span class="score"><b>${sess.r}</b>/${sess.n}</span>`) +
-    `<span class="score" style="color:var(--mut)">${pos+1} of ${total}</span>
-     <div class="bar" style="flex:1"><i style="width:${(pos)/total*100}%"></i></div>` +
+    (mode==="mock"
+      ? `<button class="score" id="openReview" style="color:var(--mut);background:none;border:0;padding:0;font:inherit;text-decoration:underline;text-underline-offset:2px" title="Review all questions">${pos+1} of ${total}</button>`
+      : `<span class="score" style="color:var(--mut)">${pos+1} of ${total}</span>`) +
+     `<div class="bar" style="flex:1"><i style="width:${(pos)/total*100}%"></i></div>` +
     (mode==="mock"
       ? `<button class="sec" id="prev">Back</button><button class="nx" id="next" style="flex:none;padding:12px 20px">${pos===total-1?"Finish":"Next"}</button>`
       : `<button class="sec" id="quit">End</button>`+
@@ -1379,12 +1447,13 @@ function card(){
     save(); clearUndo(); next();
   });
   const nx=$("#next"); if(nx) nx.onclick=()=>{ clearUndo(); next(); };
+  const orv=$("#openReview"); if(orv) orv.onclick=()=>openMockReview(false);
   const pv=$("#prev"); if(pv) pv.onclick=()=>{
     if(pos>0){
       stopSpeaking();
       if(mode==="mock"){ mockTimes[pos]=(mockTimes[pos]||0)+(Date.now()-mockPosStart); }
       pos--;answered=mockLog[pos]??null;
-      if(mode==="mock") mockPosStart=Date.now();
+      if(mode==="mock"){ mockPosStart=Date.now(); persistMock(); }
       card();
     }
   };
@@ -1479,18 +1548,70 @@ function wireSwipe(container){
 function next(){
   stopSpeaking();
   if(mode==="mock"){ mockTimes[pos]=(mockTimes[pos]||0)+(Date.now()-mockPosStart); }
-  if(mode==="mock" && pos===queue.length-1) return finish();
-  if(pos===queue.length-1) return finish();
+  if(pos===queue.length-1){
+    if(mode==="mock"){
+      // Real exam software makes you look a submit in the eye before it accepts
+      // it; drop into the review grid instead of silently finishing if anything
+      // is still blank, rather than letting one stray tap end the attempt.
+      // (mockLog is a sparse array - only indices that were ever answered exist -
+      // so unanswered count must be queue.length minus the real answers, not a
+      // filter over mockLog's own .length, which undercounts once you've jumped
+      // past a gap via Back/the review grid without touching it.)
+      const unanswered = queue.length - mockLog.filter(x=>x!=null).length;
+      if(unanswered>0){ persistMock(); openMockReview(true); return; }
+    }
+    return finish();
+  }
   pos++; answered = mode==="mock" ? (mockLog[pos]??null) : null; revealed=false; confPick=null;
-  if(mode==="mock") mockPosStart=Date.now();
+  if(mode==="mock"){ mockPosStart=Date.now(); persistMock(); }
   card();
+}
+
+/* Mock exam review grid: a Pearson-VUE-style question map so a mid-exam
+   check-in (or the pre-submit gate in next()) can jump straight to any
+   question instead of only stepping one at a time. Doesn't touch mockT -
+   tick() already no-ops harmlessly while #tm isn't on screen, and the
+   still-running interval picks the visible timer back up the moment card()
+   redraws it, so there's nothing to pause/resume here. */
+function openMockReview(warnUnanswered){
+  stopSpeaking();
+  const st=$("#stage");
+  const answeredCount = mockLog.filter(x=>x!=null).length;
+  const unanswered = queue.length-answeredCount;
+  const flaggedCount = queue.filter(q=>S.flags[q.i]).length;
+  st.innerHTML = `<div class="panel">
+    <p class="lab" style="margin-bottom:2px">Review your answers</p>
+    <p class="note">${answeredCount} of ${queue.length} answered${flaggedCount?` · ${flaggedCount} flagged`:""}${unanswered?` · <b style="color:var(--no)">${unanswered} unanswered</b>`:""}</p>
+    ${warnUnanswered && unanswered ? `<p class="note" style="color:var(--no);margin-top:-6px">You have ${unanswered} unanswered question${unanswered===1?"":"s"} left. Tap one below to go answer it, or submit as-is.</p>`:``}
+    <div class="reviewgrid">${queue.map((q,i)=>{
+      const done = mockLog[i]!=null;
+      const flagged = !!S.flags[q.i];
+      const cur = i===pos;
+      return `<button class="rgcell${done?" rg-done":""}${flagged?" rg-flag":""}${cur?" rg-cur":""}" data-i="${i}" title="Q${i+1}${flagged?" · flagged":""}${done?" · answered":" · unanswered"}">${i+1}</button>`;
+    }).join("")}</div>
+    <div class="reviewlegend"><span><i class="rl-done"></i>Answered</span><span><i></i>Unanswered</span><span>★ Flagged</span></div>
+    <div class="row" style="gap:8px;margin-top:20px">
+      <button class="sec" id="reviewBack" style="flex:1">Back to exam</button>
+      <button class="go" id="reviewSubmit" style="flex:1;margin-top:0">Submit exam</button>
+    </div>
+  </div>`;
+  $("#bottom").classList.add("hidden");
+  st.querySelectorAll(".rgcell").forEach(b=>b.onclick=()=>{
+    pos=+b.dataset.i; answered=mockLog[pos]??null; mockPosStart=Date.now(); persistMock(); card();
+  });
+  $("#reviewBack").onclick=()=>{ mockPosStart=Date.now(); card(); };
+  $("#reviewSubmit").onclick=()=>{
+    if(unanswered && !confirm(`Submit with ${unanswered} question${unanswered===1?"":"s"} unanswered?`)) return;
+    mockPosStart=Date.now(); // don't let time spent browsing the grid get attributed to whatever question was last current
+    finish();
+  };
 }
 
 function finish(){
   stopSpeaking();
   if(mockT){clearInterval(mockT); mockT=null;}
   const st=$("#stage"); $("#bottom").classList.add("hidden");
-  let right=0, byDom={1:[0,0],2:[0,0],3:[0,0],4:[0,0]}, wrongs=[], slowest=[];
+  let right=0, byDom={1:[0,0],2:[0,0],3:[0,0],4:[0,0]}, wrongs=[], slowest=[], pacingByDom=[];
   if(mode==="mock"){
     mockTimes[pos]=(mockTimes[pos]||0)+(Date.now()-mockPosStart);
     queue.forEach((q,i)=>{
@@ -1502,6 +1623,17 @@ function finish(){
     S.mockInProgress=null;
     save();
     slowest = queue.map((q,i)=>({q,ms:mockTimes[i]||0})).filter(x=>x.ms>0).sort((a,b)=>b.ms-a.ms).slice(0,5);
+    // The real exam allots 180 min for 120 questions (90 sec/question); TiffLex
+    // scales shorter mocks at the same rate, so 90 sec/question is the target
+    // regardless of mock length. mockTimes was already being collected per
+    // question for the "slowest" list above; this just aggregates it by domain
+    // so pacing trouble in one domain doesn't hide in an overall average.
+    const domTime={1:[0,0],2:[0,0],3:[0,0],4:[0,0]};
+    queue.forEach((q,i)=>{ const ms=mockTimes[i]||0; if(ms>0){ domTime[q.d][0]+=ms; domTime[q.d][1]++; } });
+    pacingByDom = [1,2,3,4].map(d=>{
+      const [ms,n]=domTime[d];
+      return n ? {d, avgSec:Math.round(ms/n/1000)} : null;
+    }).filter(Boolean);
   } else { right=sess.r; wrongs=sessWrongs.slice(); }
   const total = mode==="mock"?queue.length:sess.n;
   const pct = total?Math.round(right/total*100):0;
@@ -1517,6 +1649,9 @@ function finish(){
     <p class="lab" style="margin-top:8px">${right} of ${total} correct${mode==="mock"?" · NABP scales scores to 75 to pass; treat anything under 80% here as a topic to rework.":""}</p>
     ${mode==="mock"?`<div class="dom">`+[1,2,3,4].map(d=>
        `<span>${domDot(d)}Domain ${d} · ${DOMS[d]}</span><b>${byDom[d][0]}/${byDom[d][1]}</b>`).join("")+`</div>`:``}
+    ${pacingByDom.length?`<p class="lab" style="margin-top:18px">Pacing by domain <span style="font-weight:400;color:var(--mut)">(target: ~90 sec/question)</span></p>
+    <div class="dom">${pacingByDom.map(p=>
+      `<span>${domDot(p.d)}Domain ${p.d}</span><b style="color:${p.avgSec>108?"var(--no)":p.avgSec<72?"var(--acc)":"var(--ink)"}">${p.avgSec}s/q</b>`).join("")}</div>`:``}
     <button class="go" id="again" style="margin-top:18px">${mode==="mock"?"Run another mock":"Start another set"}</button>
     ${mode==="mock"&&total?`<button class="ghost" id="shareScore" style="margin-top:10px;width:100%;padding:9px;font-size:13.5px">Share this score</button>`:``}</div>
     ${slowest.length?`<p class="lab" style="margin:22px 0 0">Where you spent the most time (right or wrong)</p><div class="rlist">`+
@@ -1678,10 +1813,20 @@ function syncPanelHtml(){
 window.addEventListener("online", ()=>{ if(S.syncEnabled && S.syncId) cloudSyncPull(true).then(queueCloudPush); });
 let lastVisibilityPull=0;
 document.addEventListener("visibilitychange", ()=>{
-  if(document.visibilityState==="visible" && S.syncEnabled && S.syncId && Date.now()-lastVisibilityPull>30000){
+  if(document.visibilityState==="hidden"){
+    // Belt-and-suspenders flush right before backgrounding: every mock answer
+    // and every question-navigation already calls persistMock() as it happens,
+    // but this guarantees the exact question/position is on disk the instant
+    // before the OS might reclaim the page's memory, so a boot-time resume
+    // (see checkExpiredMock) always has the freshest spot to come back to.
+    if(mode==="mock") persistMock();
+    return;
+  }
+  if(S.syncEnabled && S.syncId && Date.now()-lastVisibilityPull>30000){
     lastVisibilityPull=Date.now(); cloudSyncPull(true);
   }
 });
+addEventListener("pagehide", ()=>{ if(mode==="mock") persistMock(); });
 
 /* ---------- sheet + stats ---------- */
 function sheet(){
@@ -1991,6 +2136,7 @@ function stats(){
       <div><p class="lab" style="margin:0;font-size:14px;color:var(--ink)">${rd.label}</p>
         <p class="note" style="margin:2px 0 0">Exam-readiness score: blends accuracy, how much of the bank you've covered, and your study streak.</p></div>
     </div>`:emptyState("neutral","You haven't answered any questions yet.","Start a drill or flashcard session and your progress will show up here.")}
+    ${pacingHtml()}
     <p class="big">${seen}<span> of ${BANK.length} seen</span></p>
     <div class="meter"><div class="bar bar-animate"><i style="width:${seen/BANK.length*100}%"></i></div></div>
     <div class="dom"><span>Answered correctly</span><b>${r}</b><span>Answered wrong, shaky, or guessed</span><b>${w}</b>
@@ -2421,7 +2567,7 @@ function showShortcutsHelp(){
   </div></div>`;
   $("#onboardGo").onclick=()=>{ el.innerHTML=""; };
 }
-render();
+if(!bootResumedMock) render();
 cloudSyncInit();
 
 function showOnboarding(){
@@ -2517,6 +2663,14 @@ const CHANGELOG = {
   ],
   "v20.21": [
     "Fixed the theme menu (accent color, text size, mastery threshold, and the rest) being impossible to fully scroll through on iPhone - it now scrolls within its own dropdown instead of relying on the page to scroll far enough to reach the bottom of it"
+  ],
+  "v20.22": [
+    "Fixed mock exams appearing to \"reset\" after switching apps briefly or scrolling - a background/foreground cycle or a browser pull-to-refresh could reload the page, and it now drops you straight back into the exact question you were on (with a quiet \"Resumed\" notice) instead of showing the setup screen",
+    "Stopped scrolling from ever triggering the browser's pull-to-refresh, which could reload the whole app out from under you",
+    "Mock exams now save your exact spot every time you move to a new question, not just when you pick an answer, so an interruption never rewinds you",
+    "Added a Review screen for mock exams: tap the question counter (or try to finish with anything unanswered) to see every question at a glance - answered, flagged, or blank - and jump straight to any of them before you submit",
+    "Mock exam results now show your pacing by domain (target: ~90 sec/question) alongside your score, so you can see which domain is eating your seat time",
+    "Progress now projects whether you're on pace to see the whole bank before your exam date, based on your actual recent daily pace - and suggests a daily target if you're behind"
   ]
 };
 function showWhatsNew(version){
