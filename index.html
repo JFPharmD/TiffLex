@@ -73,6 +73,14 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:10
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:Archivo,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.5;
   -webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;min-height:100vh}
+/* Opt out of the browser's double-tap-to-zoom gesture on tappable controls -
+   without this, a fast double-tap on an answer option or Next (easy to do
+   under a mock exam's timer) gets read as "zoom in" instead of two taps, and
+   since the DOM re-renders after every tap, a second double-tap rarely lands
+   on the same spot to zoom back out. This only disables the double-tap
+   shortcut on these controls - pinch-zoom on the page itself is untouched,
+   so nothing here affects accessibility zooming. */
+button, a{touch-action:manipulation}
 button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -439,7 +447,7 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.23";
+const APP_VERSION = "v20.24";
 const APP_UPDATED = "September 26, 2026";
 
 let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0, masteryThreshold:2, keyboardShortcuts:true, dashboardOrder:null, mockWeights:null};
@@ -1160,7 +1168,11 @@ function render(){
     });
     if(mockCustom) wireFilters(su);
     const rm=$("#resumeMock"); if(rm) rm.onclick=resumeMock;
-    const dm=$("#discardMock"); if(dm) dm.onclick=()=>{ S.mockInProgress=null; save(); render(); };
+    const dm=$("#discardMock"); if(dm) dm.onclick=()=>{
+      const {answeredN} = fileMockAnswers(S.mockInProgress);
+      S.mockInProgress=null; save(); render();
+      showToast(answeredN ? `Recorded ${answeredN} answered question${answeredN===1?"":"s"} before discarding the rest` : "Discarded - nothing had been answered yet");
+    };
     const cmt=$("#customMockToggle"); if(cmt) cmt.onchange=()=>{ customMock=cmt.checked; render(); };
     const cwt=$("#customWeightToggle"); if(cwt) cwt.onchange=()=>{
       customWeighting=cwt.checked;
@@ -1309,6 +1321,36 @@ function resumeMock(){
   mockT=setInterval(tick,1000); mockPosStart=Date.now();
   render();
 }
+/* Records history/SM-2 scheduling for whatever was actually answered in an
+   in-progress mock that's ending WITHOUT going through finish() - the app
+   normally only files a mock's answers into S.h in one batch, at finish(),
+   so any other way a mock stops short (Discard on the resume banner, time
+   running out while the app was closed) used to throw the whole attempt's
+   answers away with zero record of them ever happening: no history entry,
+   no "missed ×N" badge, nothing - even for questions genuinely answered
+   correctly. That's indistinguishable from having never seen the question
+   at all, which is exactly what going back to "unseen" filters looks like.
+   Only ever files questions that were actually reached and answered -
+   never marks a question the person never got to as wrong/shaky just for
+   sitting later in the queue. */
+function fileMockAnswers(mp){
+  const q2 = mp.ids.map((id,idx)=>{ const q=BANK[id]; q.ord=mp.ords[idx]; return q; });
+  let right=0, answeredN=0;
+  q2.forEach((q,i)=>{
+    const pick=mp.mockLog[i];
+    if(pick==null) return;
+    answeredN++;
+    const ok = q.ord[pick]===q.c;
+    if(ok) right++;
+    const hh=hist(q.i); ok?hh.r++:hh.w++; sm2Update(hh, ok?4:1);
+  });
+  if(answeredN){
+    S.mockHistory=S.mockHistory||[];
+    S.mockHistory.push({date:todayStr(), pct:Math.round(right/answeredN*100), right, total:answeredN});
+    if(S.mockHistory.length>20) S.mockHistory=S.mockHistory.slice(-20);
+  }
+  return {right, answeredN};
+}
 function checkExpiredMock(){
   const mp=S.mockInProgress;
   if(mp && mp.mockEnd>Date.now()){
@@ -1325,20 +1367,8 @@ function checkExpiredMock(){
     return true;
   }
   if(!mp) return false;
-  // Time ran out while the app was closed; score what was answered and file it, rather than losing the attempt.
-  const q2 = mp.ids.map((id,idx)=>{ const q=BANK[id]; q.ord=mp.ords[idx]; return q; });
-  let right=0;
-  q2.forEach((q,i)=>{
-    const pick=mp.mockLog[i]; const ok = pick!=null && q.ord[pick]===q.c;
-    if(ok) right++;
-    const hh=hist(q.i); ok?hh.r++:hh.w++; sm2Update(hh, ok?4:1);
-  });
-  const total=q2.length;
-  if(total){
-    S.mockHistory=S.mockHistory||[];
-    S.mockHistory.push({date:todayStr(), pct: Math.round(right/total*100), right, total});
-    if(S.mockHistory.length>20) S.mockHistory=S.mockHistory.slice(-20);
-  }
+  // Time ran out while the app was closed; file whatever was answered rather than losing the attempt.
+  fileMockAnswers(mp);
   S.mockInProgress=null;
   save();
   return false;
@@ -2684,6 +2714,10 @@ const CHANGELOG = {
   ],
   "v20.23": [
     "Fixed a bug where answering a question correctly on a mock exam never actually cleared it from your missed pile - only a correct answer in Drill or Flashcards counted before. If you'd gotten a question wrong once and then answered it right on a later mock, it would keep resurfacing under \"missed,\" \"due for review,\" and a custom mock's \"not yet seen + missed\" filter forever, even though you clearly knew it. Mock-exam answers now count exactly like drill answers toward clearing a question and scheduling its next review"
+  ],
+  "v20.24": [
+    "Fixed a bigger source of the same symptom: tapping \"Discard\" on an in-progress mock's resume banner (or the exam timing out while the app was closed) threw away every answer from that attempt with zero record of it - no history, no \"missed\" badge, nothing. A question you'd genuinely answered correctly could come back looking exactly like you'd never seen it before, including under a custom mock's \"not yet seen\" filter. Discarding or timing out now files whatever you'd actually answered first, and Discard shows a quick confirmation of how many questions got recorded",
+    "Fixed double-tapping on mobile (easy to do under a mock's timer) triggering the browser's zoom-in gesture instead of registering as taps - and since the page re-renders after every tap, a second double-tap often couldn't land in the same spot to zoom back out, leaving the app stuck zoomed in"
   ]
 };
 function showWhatsNew(version){

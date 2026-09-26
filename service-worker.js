@@ -1,7 +1,7 @@
 // TiffLex: offline service worker
 // Bump this version string any time you replace index.html so returning
 // visitors pick up the new file instead of a stale cached copy.
-const VERSION = 'v20.23';
+const VERSION = 'v20.24';
 const CACHE_NAME = 'tifflex-' + VERSION;
 
 // Alternate icon colors for the in-app icon picker (Settings > Theme menu). Precached
