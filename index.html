@@ -90,7 +90,9 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .ghost{background:none;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;font-size:13px;color:var(--mut)}
 .theme-wrap{position:relative}
 .theme-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surf);border:1px solid var(--rule);
-  border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;z-index:30;min-width:168px}
+  border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;z-index:30;min-width:168px;
+  max-height:min(520px, calc(100vh - 96px - env(safe-area-inset-bottom,0px)));overflow-y:auto;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .theme-menu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;
   border-radius:8px;padding:9px 10px;font-size:13.5px;color:var(--ink);min-height:42px}
 .theme-menu button[aria-pressed="true"]{background:var(--acc-s);color:var(--acc);font-weight:600}
@@ -424,8 +426,8 @@ const GUIDE = "<h2 id=\"g0\">0. What the UMPJE is testing</h2>\n<p>NABP&#x27;s U
 const DOMS = {1:"Pharmacy & pharmacist practice",2:"Medication use process",3:"Regulatory authority",4:"Pharmacy operations"};
 const WEIGHT = {1:30,2:30,3:20,4:20};
 const KEY = "umpje.v2";
-const APP_VERSION = "v20.20";
-const APP_UPDATED = "September 25, 2026";
+const APP_VERSION = "v20.21";
+const APP_UPDATED = "September 26, 2026";
 
 let S = {h:{}, dom:[1,2,3,4], focus:["all"], examDate:null, theme:"auto", accent:"default", appIcon:"default", textSize:"md", flags:{}, mockLen:120, streak:{count:0,last:null}, mockHistory:[], notes:{}, dailyGoal:20, daily:{date:null,count:0}, dailyLog:{}, onboarded:false, tags:{}, sound:false, dyslexiaFont:false, distractionFree:false, mockInProgress:null, readThrough:false, ttsOn:false, haptics:true, bankCompleteShown:false, presets:[], lastSeenVersion:null, installBannerDismissed:false, syncId:null, syncEnabled:false, lastSyncedAt:null, lastModified:0, masteryThreshold:2, keyboardShortcuts:true, dashboardOrder:null, mockWeights:null};
 try{const r=localStorage.getItem(KEY); if(r) S=Object.assign(S,JSON.parse(r));}catch(e){}
@@ -2512,6 +2514,9 @@ const CHANGELOG = {
     "Keyboard shortcuts while drilling (A-D, Space, Enter, arrows, and more - press ? anytime to see the full list) can now be turned off in the theme menu if you'd rather they stay out of the way, and there's a \"View shortcuts\" link so they're easier to find",
     "Mock exams have a new \"Customize domain weighting\" option to override the default 30/30/20/20 blueprint mix for a one-off mock focused on a weak domain",
     "The Progress screen has a new small dashboard (missed pile, study streak, weakest domain, due for review) that you can reorder with the ‹ › buttons to put what matters most to you first"
+  ],
+  "v20.21": [
+    "Fixed the theme menu (accent color, text size, mastery threshold, and the rest) being impossible to fully scroll through on iPhone - it now scrolls within its own dropdown instead of relying on the page to scroll far enough to reach the bottom of it"
   ]
 };
 function showWhatsNew(version){
